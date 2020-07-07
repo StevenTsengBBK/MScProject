@@ -7,9 +7,15 @@ urbansound8k_features.csv is the features extracted from the all possible extrac
 
 Graphs like MFCC, STFT and Waveform are stored in corresponding folders and splited into 10 folders that was organised by UrbanSound8K author.
 
-## Data Prepare for model training
+## Data Preparing
 
-The original dataset is now temporarily split into 2 folders traing and test dataset. The first 9 folds are traing set and last folder is test set.
+### ResNeSt_Data_Preparation.py
+The code that copy data from download folder to root directory ~/encoding/data. Each class has a folder to collect the samples.
 
-#### Statistic.py
-Is the file that copy file from downloaded folder to home directory named encoding/data/urbansound8k
+For lite version, use ```--mini``` when training the model. The collection will not acquire 100 samples in each class for training and 10 samples in each class for testing.
+
+## Model Training
+
+### ResNeSt_Model_Train.py
+
+This is the ResNeSt training code with validation process.
