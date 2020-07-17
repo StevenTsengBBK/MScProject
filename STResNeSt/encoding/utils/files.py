@@ -11,9 +11,9 @@ __all__ = ['save_checkpoint', 'download', 'mkdir', 'check_sha1']
 def save_checkpoint(state, args, is_best, filename='checkpoint.pth.tar'):
     """Saves checkpoint to disk"""
     if hasattr(args, 'backbone'):
-        directory = "runs/%s/%s/%s/%s/"%(args.dataset, args.model, args.backbone, args.checkname)
+        directory = "runs/%s/%s/%s/%s/"%('imagenet', args.model_name, args.backbone, args.checkpoint_name)
     else:
-        directory = "runs/%s/%s/%s/"%(args.dataset, args.model, args.checkname)
+        directory = "runs/%s/%s/%s/"%('imagenet', args.model_name, args.checkpoint_name)
     if not os.path.exists(directory):
         os.makedirs(directory)
     filename = directory + filename

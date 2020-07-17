@@ -15,7 +15,7 @@ import torch.nn as nn
 #from ..nn import SyncBatchNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
-__all__ = ['MixUpWrapper', 'get_selabel_vector']
+__all__ = ['MixUpWrapper', 'MixUpWrapperCPU', 'get_selabel_vector']
 
 class MixUpWrapper(object):
     def __init__(self, alpha, num_classes, dataloader, device):
@@ -47,6 +47,33 @@ class MixUpWrapper(object):
     def __iter__(self):
         return self.mixup_loader(self.dataloader)
 
+class MixUpWrapperCPU(object):
+    def __init__(self, alpha, num_classes, dataloader):
+        self.alpha = alpha
+        self.dataloader = dataloader
+        self.num_classes = num_classes
+
+    def mixup_loader(self, loader):
+        def mixup(alpha, num_classes, data, target):
+            with torch.no_grad():
+                bs = data.size(0)
+                c = np.random.beta(alpha, alpha)
+                perm = torch.randperm(bs, device='cpu')
+
+                md = c * data + (1-c) * data[perm, :]
+                mt = c * target + (1-c) * target[perm, :]
+                return md, mt
+
+        for input, target in loader:
+            target = torch.nn.functional.one_hot(target, self.num_classes)
+            i, t = mixup(self.alpha, self.num_classes, input, target)
+            yield i, t
+
+    def __len__(self):
+        return len(self.dataloader)
+
+    def __iter__(self):
+        return self.mixup_loader(self.dataloader)
 
 def get_selabel_vector(target, nclass):
     r"""Get SE-Loss Label in a batch

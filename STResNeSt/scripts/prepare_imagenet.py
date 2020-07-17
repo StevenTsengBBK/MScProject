@@ -9,11 +9,9 @@ from tqdm import tqdm
 import subprocess
 from encoding.utils import check_sha1, download, mkdir
 
-_TARGET_DIR = os.path.expanduser('~/.encoding/data/ILSVRC2012')
+_TARGET_DIR = os.path.expanduser('~/encoding/data/ILSVRC2012')
 _TRAIN_TAR = 'ILSVRC2012_img_train.tar'
-_TRAIN_TAR_SHA1 = '43eda4fe35c1705d6606a6a7a633bc965d194284'
 _VAL_TAR = 'ILSVRC2012_img_val.tar'
-_VAL_TAR_SHA1 = '5f3f73da3395154b60528b2b2a2caf2374f5f178'
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -31,12 +29,6 @@ def parse_args():
                         help="Number of threads to use when building image record file.")
     args = parser.parse_args()
     return args
-
-def check_file(filename, checksum, sha1):
-    if not os.path.exists(filename):
-        raise ValueError('File not found: '+filename)
-    if checksum and not check_sha1(filename, sha1):
-        raise ValueError('Corrupted file: '+filename)
 
 def extract_train(tar_fname, target_dir, with_rec=False, num_thread=1):
     mkdir(target_dir)
@@ -76,9 +68,7 @@ def main():
 
     download_dir = os.path.expanduser(args.download_dir)
     train_tar_fname = os.path.join(download_dir, _TRAIN_TAR)
-    check_file(train_tar_fname, args.checksum, _TRAIN_TAR_SHA1)
     val_tar_fname = os.path.join(download_dir, _VAL_TAR)
-    check_file(val_tar_fname, args.checksum, _VAL_TAR_SHA1)
 
     build_rec = args.with_rec
     if build_rec:
