@@ -11,12 +11,14 @@ from STResNeSt.encoding.nn import LabelSmoothing, NLLMultiLabelSmooth
 import STResNeSt.encoding as encoding
 from STResNeSt.encoding.utils import (accuracy, AverageMeter, MixUpWrapperCPU, LR_Scheduler)
 
-validation_set = [9, 10]
+validation_set = [8, 9]
+testing_set = [10]
 
 # global variable
 best_pred = 0.0
 acclist_train = []
 acclist_val = []
+acclist_test = []
 
 # Argument
 class Options():
@@ -94,12 +96,12 @@ test_batch_size = args.test_batch_size
 
 if args.mini:
     from ResNeSt_Data_Preparation import MiniDataPrepare
-    MiniDataPrepare(validation_set)
+    MiniDataPrepare(validation_set, testing_set)
     train_batch_size = 20
     test_batch_size = 4
 else:
     from ResNeSt_Data_Preparation import DataPrepare
-    DataPrepare(validation_set)
+    DataPrepare(validation_set, testing_set)
 
 print("Dataset Loading")
 transform_train, transform_val = encoding.transforms.get_transform(
@@ -244,6 +246,29 @@ def validate(epoch):
             'acclist_val': acclist_val,
         }, args=args, is_best=is_best)
 
+def test():
+    print("Start Testing Process")
+
+    # Initialise Data Loader
+    _, transform_test = encoding.transforms.get_transform(
+        'imagenet', None, args.crop_size, False)
+    testset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser('~/encoding/data'),
+                                             transform=transform_test, train=False, test=True, download=True)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size, shuffle=False)
+
+    model.eval()
+    top1 = AverageMeter()
+    global acclist_train, acclist_test
+    for batch_idx, (data, target) in enumerate(test_loader):
+        with torch.no_grad():
+            output = model(data)
+            acc1 = accuracy(output, target, topk=(1,))
+            top1.update(acc1[0], data.size(0))
+            print('Batch: %d|Top1: %.3f' % (batch_idx, top1.avg))
+
+    acclist_test += [float(top1.avg)]
+    print("Testing Done")
+
 # Start Training and Validating Process
 print("Model Training")
 for epoch in range(0, args.train_epoch):
@@ -252,6 +277,7 @@ for epoch in range(0, args.train_epoch):
     validate(epoch)
     elapsed = time.time() - start
     print(f'Epoch: {epoch}, Time cost: {elapsed}')
+test()
 
 if args.export:
     torch.save(model.module.state_dict(), args.export + '.pth')
@@ -267,5 +293,6 @@ if args.resume_path is not None:
         'acclist_val':acclist_val,
         }, args=args, is_best=False)
 
-print(acclist_train)
-print(acclist_val)
+print("Training Result: ", acclist_train)
+print("Validation Result: ", acclist_val)
+print("Testing Result: ", acclist_test[0])
