@@ -1,3 +1,9 @@
+##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+## Created by: Yao-I Tseng
+## Reference: Hang Zhang (2020) https://github.com/zhanghang1989/ResNeSt
+## Email: mrsuccess1203@gmail.com
+##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 import os
 import time
 import argparse
@@ -7,12 +13,11 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
+from ResNeSt_Data_Preparation import *
+
 from STResNeSt.encoding.nn import LabelSmoothing, NLLMultiLabelSmooth
 import STResNeSt.encoding as encoding
 from STResNeSt.encoding.utils import (accuracy, AverageMeter, MixUpWrapperCPU, LR_Scheduler)
-
-validation_set = [8, 9]
-testing_set = [10]
 
 # global variable
 best_pred = 0.0
@@ -57,6 +62,8 @@ class Options():
                             help='number of epochs to train (default: 100)')
         parser.add_argument('--start_epoch', type=int, default=0,
                             metavar='N', help='the epoch number to start (default: 0)')
+        parser.add_argument('--FiveFold', action='store_true', default=False, help="5fold Validation")
+        parser.add_argument('--TenFold', action='store_true', default=False, help="10fold Validation")
 
         # Optimiser Settings
         parser.add_argument('--learning_rate', type=float, default=0.1, metavar='LR',
@@ -84,109 +91,93 @@ class Options():
         args = self.parser.parse_args()
         return args
 
-args = Options().parse()
-
-# Setting the random seed of PyTorch
-torch.manual_seed(10)
-
-# Dataloader
-# Load data to memory
-train_batch_size = args.train_batch_size
-test_batch_size = args.test_batch_size
-
-if args.mini:
-    from ResNeSt_Data_Preparation import MiniDataPrepare
-    MiniDataPrepare(validation_set, testing_set)
-    train_batch_size = 20
-    test_batch_size = 4
-else:
-    from ResNeSt_Data_Preparation import DataPrepare
-    DataPrepare(validation_set, testing_set)
-
-print("Dataset Loading")
-transform_train, transform_val = encoding.transforms.get_transform(
-            'imagenet', None, args.crop_size, False)
-trainset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser('~/encoding/data'),
-                                             transform=transform_train, train=True, download=True)
-train_loader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, shuffle=False)
+def model_prepare(root = '~/encoding/data'):
+    print("Dataset Loading")
+    transform_train, transform_val = encoding.transforms.get_transform(
+                'imagenet', None, args.crop_size, False)
+    trainset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser(root),
+                                                 transform=transform_train, train=True, download=True)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, shuffle=False)
 
 
-validationset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser('~/encoding/data'),
-                                           transform=transform_val, train=False, download=True)
-val_loader = torch.utils.data.DataLoader(validationset, batch_size=test_batch_size, shuffle=False)
-print("Dataset Loaded")
+    validationset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser(root),
+                                               transform=transform_val, train=False, download=True)
+    val_loader = torch.utils.data.DataLoader(validationset, batch_size=test_batch_size, shuffle=False)
+    print("Dataset Loaded")
 
-# Model Training
-# Check if computer has GPU
-device = "cuda"
-if not torch.cuda.is_available():
-    device = "cpu"
-    print("GPU device not available, CPU has replaced instead.")
-device = torch.device(device)
+    # Model Training
+    # Check if computer has GPU
+    device = "cuda"
+    if not torch.cuda.is_available():
+        device = "cpu"
+        print("GPU device not available, CPU has replaced instead.")
+    device = torch.device(device)
 
-# Initialising model
-# Argument acquiring
-model_kwargs = {}
-if args.final_drop > 0.0:
-    model_kwargs['final_drop'] = args.final_drop
+    # Initialising model
+    # Argument acquiring
+    model_kwargs = {}
+    if args.final_drop > 0.0:
+        model_kwargs['final_drop'] = args.final_drop
 
-if args.dropblock_prob > 0.0:
-    model_kwargs['dropblock_prob'] = args.dropblock_prob
+    if args.dropblock_prob > 0.0:
+        model_kwargs['dropblock_prob'] = args.dropblock_prob
 
-if args.last_gamma:
-    model_kwargs['last_gamma'] = True
+    if args.last_gamma:
+        model_kwargs['last_gamma'] = True
 
-if args.rectify:
-    model_kwargs['rectified_conv'] = True
-    model_kwargs['rectify_avg'] = args.rectify_avg
+    if args.rectify:
+        model_kwargs['rectified_conv'] = True
+        model_kwargs['rectify_avg'] = args.rectify_avg
 
-# Acquire model from model zoo
-model = encoding.models.get_model(args.model_name, **model_kwargs)
-print("Model Acquired.")
+    # Acquire model from model zoo
+    model = encoding.models.get_model(args.model_name, **model_kwargs)
+    print("Model Acquired.")
 
-if args.dropblock_prob > 0.0:
-    from functools import partial
-    from encoding.nn import reset_dropblock
+    if args.dropblock_prob > 0.0:
+        from functools import partial
+        from encoding.nn import reset_dropblock
 
-    nr_iters = (args.train_epoch - args.warmup_epochs) * len(train_loader)
-    apply_drop_prob = partial(reset_dropblock, args.warmup_epochs * len(train_loader),
-                              nr_iters, 0.0, args.dropblock_prob)
-    model.apply(apply_drop_prob)
+        nr_iters = (args.train_epoch - args.warmup_epochs) * len(train_loader)
+        apply_drop_prob = partial(reset_dropblock, args.warmup_epochs * len(train_loader),
+                                  nr_iters, 0.0, args.dropblock_prob)
+        model.apply(apply_drop_prob)
 
-# Criterion and Optimiser
-if args.mixup > 0:
-    train_loader = MixUpWrapperCPU(args.mixup, 1000, train_loader)
-    criterion = NLLMultiLabelSmooth(args.label_smoothing)
-elif args.label_smoothing > 0.0:
-    criterion = LabelSmoothing(args.label_smoothing)
-else:
-    criterion = nn.CrossEntropyLoss()
-optimiser = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
-print("Loss function and optimiser ready.")
-
-# Checkpoint
-if args.resume_path is not None:
-    if os.path.isfile(args.resume_path):
-        print("=> loading checkpoint '{}'".format(args.resume_path))
-        checkpoint = torch.load(args.resume_path)
-        args.start_epoch = checkpoint['epoch'] + 1 if args.start_epoch == 0 else args.start_epoch
-        best_pred = checkpoint['best_pred']
-        acclist_train = checkpoint['acclist_train']
-        acclist_val = checkpoint['acclist_val']
-        model.module.load_state_dict(checkpoint['state_dict'])
-        optimiser.load_state_dict(checkpoint['optimiser'])
-        print("=> loaded checkpoint '{}' (epoch {})"
-              .format(args.resume_path, checkpoint['epoch']))
+    # Criterion and Optimiser
+    if args.mixup > 0:
+        train_loader = MixUpWrapperCPU(args.mixup, 1000, train_loader)
+        criterion = NLLMultiLabelSmooth(args.label_smoothing)
+    elif args.label_smoothing > 0.0:
+        criterion = LabelSmoothing(args.label_smoothing)
     else:
-        raise RuntimeError("=> no resume checkpoint found at '{}'". \
-                           format(args.resume_path))
+        criterion = nn.CrossEntropyLoss()
+    optimiser = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
+    print("Loss function and optimiser ready.")
 
-# Scheduler
-scheduler = LR_Scheduler(args.learning_rate_scheduler,
-                             base_lr=args.learning_rate,
-                             num_epochs=args.train_epoch,
-                             iters_per_epoch=len(train_loader),
-                             warmup_epochs=args.warmup_epochs)
+    # Checkpoint
+    if args.resume_path is not None:
+        if os.path.isfile(args.resume_path):
+            print("=> loading checkpoint '{}'".format(args.resume_path))
+            checkpoint = torch.load(args.resume_path)
+            args.start_epoch = checkpoint['epoch'] + 1 if args.start_epoch == 0 else args.start_epoch
+            best_pred = checkpoint['best_pred']
+            acclist_train = checkpoint['acclist_train']
+            acclist_val = checkpoint['acclist_val']
+            model.module.load_state_dict(checkpoint['state_dict'])
+            optimiser.load_state_dict(checkpoint['optimiser'])
+            print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.resume_path, checkpoint['epoch']))
+        else:
+            raise RuntimeError("=> no resume checkpoint found at '{}'". \
+                               format(args.resume_path))
+
+    # Scheduler
+    scheduler = LR_Scheduler(args.learning_rate_scheduler,
+                                 base_lr=args.learning_rate,
+                                 num_epochs=args.train_epoch,
+                                 iters_per_epoch=len(train_loader),
+                                 warmup_epochs=args.warmup_epochs)
+
+    return model, train_loader, val_loader, scheduler, optimiser, criterion
 
 def train(epoch):
     print("Training epoch: ", str(epoch))
@@ -246,16 +237,17 @@ def validate(epoch):
             'acclist_val': acclist_val,
         }, args=args, is_best=is_best)
 
-def test():
+def test(root = '~/encoding/data'):
     print("Start Testing Process")
 
     # Initialise Data Loader
     _, transform_test = encoding.transforms.get_transform(
         'imagenet', None, args.crop_size, False)
-    testset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser('~/encoding/data'),
+    testset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser(root),
                                              transform=transform_test, train=False, test=True, download=True)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size, shuffle=False)
 
+    # Model Testing
     model.eval()
     top1 = AverageMeter()
     global acclist_train, acclist_test
@@ -269,15 +261,75 @@ def test():
     acclist_test += [float(top1.avg)]
     print("Testing Done")
 
+validation_set = [8, 9]
+testing_set = [10]
+
+# Loading arguments
+args = Options().parse()
+
+# Setting the random seed of PyTorch
+torch.manual_seed(10)
+
+# Data loader
+# Load data to memory
+train_batch_size = args.train_batch_size
+test_batch_size = args.test_batch_size
+
+# The mini train allow to use small dataset (at most 100 images in both train and validation sets)
+# Otherwise the the system will prepare full dataset or for 5fold validation specific dataset
+# The mini train and standard train have fixed validation set (8th and 9th folds) and testing set (10th fold)
+if args.mini:
+    if args.FiveFold:
+        raise Exception("Mini Train Does not Allow Five Fold.")
+    else:
+        MiniDataPrepare(validation_set, testing_set)
+    train_batch_size = 20
+    test_batch_size = 4
+else:
+    if args.FiveFold:
+        DataPrepareFiveFold()
+    else:
+        DataPrepare(validation_set, testing_set)
+
 # Start Training and Validating Process
 print("Model Training")
-for epoch in range(0, args.train_epoch):
-    start = time.time()
-    train(epoch)
-    validate(epoch)
-    elapsed = time.time() - start
-    print(f'Epoch: {epoch}, Time cost: {elapsed}')
-test()
+if args.FiveFold:
+    # Five Fold Validation
+    print("5-Fold Validation activated")
+    validation_set = np.array([1])
+    for round in range(1,6):
+        print("Starting round", str(round), "Validation Set:", str(validation_set))
+
+        # Setting the root to fetch the dataset
+        root = '~/encoding/data/round' + str(round)
+
+        # Preparing model
+        model, train_loader, val_loader, scheduler, optimiser, criterion = model_prepare(root)
+        for epoch in range(0, args.train_epoch):
+            start = time.time()
+            train(epoch)
+            validate(epoch)
+            elapsed = time.time() - start
+            print(f'Epoch: {epoch}, Time cost: {elapsed}')
+        test(root)
+        validation_set = validation_set + 1
+
+    print("Validation Result: ", np.mean(acclist_val))
+
+else:
+    # Standard Training, Validation, and Testing Model
+    # Preparing model
+    model, train_loader, val_loader, scheduler, optimiser, criterion = model_prepare()
+    for epoch in range(0, args.train_epoch):
+        start = time.time()
+        train(epoch)
+        validate(epoch)
+        elapsed = time.time() - start
+        print(f'Epoch: {epoch}, Time cost: {elapsed}')
+    test()
+    print("Training Result: ", acclist_train)
+    print("Validation Result: ", acclist_val)
+    print("Testing Result: ", acclist_test[0])
 
 if args.export:
     torch.save(model.module.state_dict(), args.export + '.pth')

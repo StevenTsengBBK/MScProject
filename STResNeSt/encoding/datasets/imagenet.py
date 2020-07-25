@@ -1,10 +1,7 @@
 ##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Created by: Hang Zhang
-## Email: zhanghang0704@gmail.com
-## Copyright (c) 2018
-##
-## This source code is licensed under the MIT-style license found in the
-## LICENSE file in the root directory of this source tree
+## Modified by: Yao-I Tseng
+## Email: mrsuccess1203@gmail.com
 ##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 import os
@@ -21,8 +18,8 @@ class ImageNetDataset(datasets.ImageFolder):
         if train:
             split = 'train'
         elif test:
-            split='test'
+            split = 'test'
         else:
-            split='val'
+            split = 'val'
         root = os.path.join(root, self.BASE_DIR, split)
         super(ImageNetDataset, self).__init__(root, transform, target_transform)

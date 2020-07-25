@@ -35,7 +35,7 @@ acronyms = {
     'cifar10': 'cifar10',
 }
 
-def get_dataset(name, **kwargs):
+def get_dataset(name,**kwargs):
     return datasets[name.lower()](**kwargs)
 
 def _make_deprecate(meth, old_name):
