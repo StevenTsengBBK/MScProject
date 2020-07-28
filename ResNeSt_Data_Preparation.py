@@ -18,7 +18,8 @@ class_label = ["air_conditioner"
     , "siren"
     , "street_music"]
 
-DOWNLOAD_DIR = os.path.expanduser("./MFCC")
+IMAGE_TYPE = ["MFCC", "STFT"]
+DOWNLOAD_DIR = os.path.expanduser("./STFT")
 DATASET_DIR = os.path.expanduser("~/encoding/data")
 
 CLASS1_LABELID = 4
@@ -157,23 +158,28 @@ def DataPrepareFiveFold():
         print("Five Fold Dataset Importing.")
 
     # Load dataset in class subfolders
-    testing_sets = np.array([1])
+    CV_sets = np.array([1])
     validation_sets = np.array([6,7])
+
     for iteration in range(1,6):
         ITER_DIR = DATASET_DIR + "/round" + str(iteration) + "/urbansound8k/"
         os.makedirs(ITER_DIR +"/train")
         os.makedirs(ITER_DIR +"/val")
         os.makedirs(ITER_DIR +"/test")
+        os.makedirs(ITER_DIR + "/CV")
         os.makedirs(ITER_DIR +"/train/" + class_label[CLASS1_LABELID])
         os.makedirs(ITER_DIR +"/val/" + class_label[CLASS1_LABELID])
         os.makedirs(ITER_DIR +"/test/" + class_label[CLASS1_LABELID])
+        os.makedirs(ITER_DIR + "/CV/" + class_label[CLASS1_LABELID])
         os.makedirs(ITER_DIR +"/train/" + class_label[CLASS2_LABELID])
         os.makedirs(ITER_DIR +"/val/" + class_label[CLASS2_LABELID])
         os.makedirs(ITER_DIR +"/test/" + class_label[CLASS2_LABELID])
+        os.makedirs(ITER_DIR + "/CV/" + class_label[CLASS2_LABELID])
 
         TRAIN_DIR = ITER_DIR +"/train"
         VAL_DIR = ITER_DIR +"/val"
         TEST_DIR = ITER_DIR + "/test"
+        CV_DIR = ITER_DIR + "/CV"
 
         # Classifying and split into train and test set
         for fold in range(1, 11):
@@ -188,16 +194,16 @@ def DataPrepareFiveFold():
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      VAL_DIR + "/" + label + "/" + file)
                 print("Validation set imported")
-            elif fold in testing_sets:
-                print("Test set importing...")
+            elif fold in CV_sets:
+                print("CV set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
                         if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                     TEST_DIR + "/" + label + "/" + file)
-                print("Test set imported")
+                                     CV_DIR + "/" + label + "/" + file)
+                print("CV set imported")
             elif fold < 6:
                 print("Train set importing...")
                 for file in fileList:
@@ -208,5 +214,15 @@ def DataPrepareFiveFold():
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      TRAIN_DIR + "/" + label + "/" + file)
                 print("Train set imported")
-        testing_sets = testing_sets + 1
+            else:
+                print("Test set importing...")
+                for file in fileList:
+                    if not file.startswith('.'):
+                        class_id = int(file.split("-")[1])
+                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                            label = class_label[class_id]
+                            copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                     TEST_DIR + "/" + label + "/" + file)
+                print("Test set imported")
+        CV_sets = CV_sets + 1
     print("Five Fold Dataset Import Succeeded.")

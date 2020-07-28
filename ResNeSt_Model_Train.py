@@ -21,9 +21,10 @@ from STResNeSt.encoding.utils import (accuracy, AverageMeter, MixUpWrapperCPU, L
 
 # global variable
 best_pred = 0.0
-acclist_train = []
-acclist_val = []
-acclist_test = []
+acclist_train = np.array([])
+acclist_val = np.array([])
+acclist_CVTest = np.array([])
+acclist_HoldoutTest = np.array([])
 
 # Argument
 class Options():
@@ -98,7 +99,6 @@ def model_prepare(root = '~/encoding/data'):
     trainset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser(root),
                                                  transform=transform_train, train=True, download=True)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, shuffle=False)
-
 
     validationset = encoding.datasets.get_dataset('imagenet', root=os.path.expanduser(root),
                                                transform=transform_val, train=False, download=True)
@@ -237,7 +237,7 @@ def validate(epoch):
             'acclist_val': acclist_val,
         }, args=args, is_best=is_best)
 
-def test(root = '~/encoding/data'):
+def test(root = '~/encoding/data', CV=False):
     print("Start Testing Process")
 
     # Initialise Data Loader
@@ -250,7 +250,7 @@ def test(root = '~/encoding/data'):
     # Model Testing
     model.eval()
     top1 = AverageMeter()
-    global acclist_train, acclist_test
+    global acclist_train, acclist_CVTest, acclist_HoldoutTest
     for batch_idx, (data, target) in enumerate(test_loader):
         with torch.no_grad():
             output = model(data)
@@ -258,7 +258,12 @@ def test(root = '~/encoding/data'):
             top1.update(acc1[0], data.size(0))
             print('Batch: %d|Top1: %.3f' % (batch_idx, top1.avg))
 
-    acclist_test += [float(top1.avg)]
+    if CV:
+        acclist_CVTest += [float(top1.avg)]
+        print("Cross Validation Test:", top1.avg)
+    else:
+        acclist_HoldoutTest += [float(top1.avg)]
+        print("Holdout Test:", top1.avg)
     print("Testing Done")
 
 validation_set = [8, 9]
@@ -282,14 +287,14 @@ if args.mini:
     if args.FiveFold:
         raise Exception("Mini Train Does not Allow Five Fold.")
     else:
-        MiniDataPrepare(validation_set, testing_set)
+        MiniDataPrepare()
     train_batch_size = 20
     test_batch_size = 4
 else:
     if args.FiveFold:
         DataPrepareFiveFold()
     else:
-        DataPrepare(validation_set, testing_set)
+        DataPrepare()
 
 # Start Training and Validating Process
 print("Model Training")
@@ -308,13 +313,20 @@ if args.FiveFold:
         for epoch in range(0, args.train_epoch):
             start = time.time()
             train(epoch)
+            # Using Fold_6 and Fold_7 for validation
             validate(epoch)
             elapsed = time.time() - start
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
+        # Using one of the five fold for Cross Validation Test
+        test(root, CV=True)
+        # Using Holdout Test Set for Final Testing
         test(root)
         validation_set = validation_set + 1
+    print("Cross Validation Test:", acclist_CVTest)
+    print("Holdout Test:", acclist_HoldoutTest)
+    print("Cross Validation Result: ", np.mean(acclist_val))
+    print("Holdout Test Result:", np.mean(acclist_HoldoutTest))
 
-    print("Validation Result: ", np.mean(acclist_val))
 
 else:
     # Standard Training, Validation, and Testing Model
@@ -326,10 +338,14 @@ else:
         validate(epoch)
         elapsed = time.time() - start
         print(f'Epoch: {epoch}, Time cost: {elapsed}')
+    # Using one of the five fold for Cross Validation Test
+    test(CV=True)
+    # Using Holdout Test Set for Final Testing
     test()
     print("Training Result: ", acclist_train)
     print("Validation Result: ", acclist_val)
-    print("Testing Result: ", acclist_test[0])
+    print("Cross Validation Test:", acclist_CVTest)
+    print("Holdout Test:", acclist_HoldoutTest)
 
 if args.export:
     torch.save(model.module.state_dict(), args.export + '.pth')
@@ -347,4 +363,3 @@ if args.resume_path is not None:
 
 print("Training Result: ", acclist_train)
 print("Validation Result: ", acclist_val)
-print("Testing Result: ", acclist_test[0])
