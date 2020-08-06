@@ -33,7 +33,7 @@ class Options():
         parser = argparse.ArgumentParser(description='Deep Encoding')
         parser.add_argument('--mini', action='store_true',
                             default=False, help='Load Mini Dataset')
-        parser.add_argument('--crop_size', type=int, default=200,
+        parser.add_argument('--crop_size', type=int, default=271,
                             help='crop image size (default: 200)')
         parser.add_argument('--mixup', type=float, default=0.0,
                             help='mixup (default eta: 0.0)')
@@ -77,14 +77,6 @@ class Options():
                             help='number of warmup epochs (default: 0)')
         parser.add_argument('--learning_rate_scheduler', type=str, default='cos',
                             help='learning rate scheduler (default: cos)')
-
-        # Checkpoint Settings
-        parser.add_argument('--resume_path', type=str, default=None,
-                            help='put the path to resuming file if needed')
-        parser.add_argument('--checkpoint_name', type=str, default='default',
-                            help='set the checkpoint name')
-        parser.add_argument('--export', type=str, default=None,
-                            help='put the path to resuming file if needed')
 
         self.parser = parser
 
@@ -153,23 +145,6 @@ def model_prepare(root = '~/encoding/data'):
     optimiser = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
     print("Loss function and optimiser ready.")
 
-    # Checkpoint
-    if args.resume_path is not None:
-        if os.path.isfile(args.resume_path):
-            print("=> loading checkpoint '{}'".format(args.resume_path))
-            checkpoint = torch.load(args.resume_path)
-            args.start_epoch = checkpoint['epoch'] + 1 if args.start_epoch == 0 else args.start_epoch
-            best_pred = checkpoint['best_pred']
-            acclist_train = checkpoint['acclist_train']
-            acclist_val = checkpoint['acclist_val']
-            model.module.load_state_dict(checkpoint['state_dict'])
-            optimiser.load_state_dict(checkpoint['optimiser'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume_path, checkpoint['epoch']))
-        else:
-            raise RuntimeError("=> no resume checkpoint found at '{}'". \
-                               format(args.resume_path))
-
     # Scheduler
     scheduler = LR_Scheduler(args.learning_rate_scheduler,
                                  base_lr=args.learning_rate,
@@ -227,15 +202,6 @@ def validate(epoch):
     if top1.avg > best_pred:
         best_pred = top1.avg
         is_best = True
-    if args.resume_path is not None:
-        encoding.utils.save_checkpoint({
-            'epoch': epoch,
-            'state_dict': model.state_dict(),
-            'optimizer': optimiser.state_dict(),
-            'best_pred': best_pred,
-            'acclist_train': acclist_train,
-            'acclist_val': acclist_val,
-        }, args=args, is_best=is_best)
 
 def test(root = '~/encoding/data', CV=False):
     print("Start Testing Process")
@@ -350,16 +316,6 @@ else:
 if args.export:
     torch.save(model.module.state_dict(), args.export + '.pth')
     print("Model Exported")
-
-if args.resume_path is not None:
-    encoding.utils.save_checkpoint({
-        'epoch': args.epochs-1,
-        'state_dict': model.module.state_dict(),
-        'optimizer': optimiser.state_dict(),
-        'best_pred': best_pred,
-        'acclist_train':acclist_train,
-        'acclist_val':acclist_val,
-        }, args=args, is_best=False)
 
 print("Training Result: ", acclist_train)
 print("Validation Result: ", acclist_val)

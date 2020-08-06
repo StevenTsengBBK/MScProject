@@ -1,1 +1,2 @@
-python3 ResNeSt_Model_Train.py --FiveFold --model_name resnest50 --train_epoch 20 --learning_rate 0.001 --rectify --last_gamma --mixup 0.2 --label_smoothing 0.1 --warmup_epochs 5
+python3 ResNeSt_Model_Train.py --model_name resnest50 --train_epoch 100 --learning_rate 0.001 --rectify --last_gamma --mixup 0.2 --label_smoothing 0.1 --warmup_epochs 5
+# python train_dist.py --dataset imagenet --model resnest50 --lr-scheduler cos --epochs 10 --checkname resnest50_rt_bots --lr 0.1 --batch-size 256 --label-smoothing 0.1 --mixup 0.2  --last-gamma --no-bn-wd --warmup-epochs 5 --dropblock-prob 0.1 --rectify

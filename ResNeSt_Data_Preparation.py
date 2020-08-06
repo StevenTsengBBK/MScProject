@@ -19,33 +19,33 @@ class_label = ["air_conditioner"
     , "street_music"]
 
 IMAGE_TYPE = ["MFCC", "STFT"]
-DOWNLOAD_DIR = os.path.expanduser("./STFT")
+DOWNLOAD_DIR = os.path.expanduser("./LP_STFT")
 DATASET_DIR = os.path.expanduser("~/encoding/data")
 
 CLASS1_LABELID = 4
 CLASS2_LABELID = 5
 
 def DataPrepare():
-    # Create Directories
-    os.makedirs(DATASET_DIR + "/urbansound8k/train")
-    os.makedirs(DATASET_DIR + "/urbansound8k/val")
-    os.makedirs(DATASET_DIR + "/urbansound8k/test/")
-    # for l in class_label:
-    #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
-    #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
-    #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
-    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[3])
-    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[3])
-    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[3])
-    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[6])
-    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[6])
-    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[6])
-
     # Load dataset in class subfolders
     if os.path.exists(DATASET_DIR):
         print("Datasets prepared. Skip preparation step.")
     else:
         print("Standard Dataset Importing.")
+
+        # Create Directories
+        os.makedirs(DATASET_DIR + "/urbansound8k/train")
+        os.makedirs(DATASET_DIR + "/urbansound8k/val")
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/")
+        # for l in class_label:
+        #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
+        #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
+        #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[3])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[3])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[3])
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[6])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[6])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[6])
 
         # Classifying and split into train and test set
 
@@ -55,9 +55,9 @@ def DataPrepare():
                 print("Validation set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
-                        class_id = file.split("-")[1]
+                        class_id = int(file.split("-")[1])
                         if class_id == 3 or class_id == 6:
-                            label = class_label[int(class_id)]
+                            label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
                 print("Validation set imported")
@@ -86,21 +86,6 @@ def DataPrepare():
 # Mini Dataset version is used for reducing training time
 # Each class will have at most 100 sample in training set and 10 samples in test set
 def MiniDataPrepare():
-    # Create Directories
-    os.makedirs(DATASET_DIR + "/urbansound8k/train")
-    os.makedirs(DATASET_DIR + "/urbansound8k/val")
-    os.makedirs(DATASET_DIR + "/urbansound8k/test/")
-    # for l in class_label:
-    #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
-    #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
-    #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
-    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[3])
-    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[3])
-    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[3])
-    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[6])
-    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[6])
-    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[6])
-
     train_set_class_count = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     test_set_class_count = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -109,6 +94,22 @@ def MiniDataPrepare():
         print("Datasets prepared. Skip preparation step.")
     else:
         print("Mini Dataset Importing.")
+
+        # Create Directories
+        os.makedirs(DATASET_DIR + "/urbansound8k/train")
+        os.makedirs(DATASET_DIR + "/urbansound8k/val")
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/")
+        # for l in class_label:
+        #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
+        #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
+        #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[3])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[3])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[3])
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[6])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[6])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[6])
+
         # Classifying and split into train and test set
         for fold in range(1, 11):
             fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
