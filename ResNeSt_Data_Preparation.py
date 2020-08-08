@@ -19,7 +19,7 @@ class_label = ["air_conditioner"
     , "street_music"]
 
 IMAGE_TYPE = ["MFCC", "STFT"]
-DOWNLOAD_DIR = os.path.expanduser("./LP_STFT")
+DOWNLOAD_DIR = os.path.expanduser("./Colour_MFCC")
 DATASET_DIR = os.path.expanduser("~/encoding/data")
 
 CLASS1_LABELID = 4

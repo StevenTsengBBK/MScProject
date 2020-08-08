@@ -34,7 +34,7 @@ class Options():
         parser.add_argument('--mini', action='store_true',
                             default=False, help='Load Mini Dataset')
         parser.add_argument('--crop_size', type=int, default=271,
-                            help='crop image size (default: 200)')
+                            help='crop image size (default: 271)')
         parser.add_argument('--mixup', type=float, default=0.0,
                             help='mixup (default eta: 0.0)')
         parser.add_argument('--label_smoothing', type=float, default=0.0,
