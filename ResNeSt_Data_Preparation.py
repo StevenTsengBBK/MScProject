@@ -20,7 +20,7 @@ class_label = ["air_conditioner"
 
 IMAGE_TYPE = ["MFCC", "STFT"]
 DOWNLOAD_DIR = os.path.expanduser("./Colour_MFCC")
-DATASET_DIR = os.path.expanduser("~/encoding/data")
+DATASET_DIR = os.path.expanduser("./encoding/data")
 
 CLASS1_LABELID = 4
 CLASS2_LABELID = 5
@@ -40,12 +40,12 @@ def DataPrepare():
         #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
         #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
         #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[3])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[3])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[3])
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[6])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[6])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[6])
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS1_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS1_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS1_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS2_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS2_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS2_LABELID])
 
         # Classifying and split into train and test set
 
@@ -56,7 +56,7 @@ def DataPrepare():
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
-                        if class_id == 3 or class_id == 6:
+                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
@@ -66,7 +66,7 @@ def DataPrepare():
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
-                        if class_id == 3 or class_id == 6:
+                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
@@ -76,7 +76,7 @@ def DataPrepare():
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
-                        if class_id == 3 or class_id == 6:
+                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      DATASET_DIR + "/urbansound8k/train/" + label + "/" + file)
@@ -103,12 +103,12 @@ def MiniDataPrepare():
         #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
         #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
         #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[3])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[3])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[3])
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[6])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[6])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[6])
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS1_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS1_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS1_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS2_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS2_LABELID])
+        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS2_LABELID])
 
         # Classifying and split into train and test set
         for fold in range(1, 11):
@@ -118,7 +118,7 @@ def MiniDataPrepare():
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
-                        if class_id == 3 or class_id == 6:
+                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                             if not test_set_class_count[class_id] == 10:
                                 label = class_label[class_id]
                                 copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
@@ -130,7 +130,7 @@ def MiniDataPrepare():
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
-                        if class_id == 3 or class_id == 6:
+                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
@@ -140,7 +140,7 @@ def MiniDataPrepare():
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
-                        if class_id == 3 or class_id == 6:
+                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                             if not train_set_class_count[class_id] == 100:
                                 label = class_label[class_id]
                                 copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,

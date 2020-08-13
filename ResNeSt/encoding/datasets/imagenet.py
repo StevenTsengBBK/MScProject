@@ -15,10 +15,18 @@ import warnings
 warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 class ImageNetDataset(datasets.ImageFolder):
-    BASE_DIR = "ILSVRC2012"
-    def __init__(self, root=os.path.expanduser('~/.encoding/data'), transform=None,
-                 target_transform=None, train=True, **kwargs):
-        split='train' if train == True else 'val'
+    BASE_DIR = "urbansound8k"
+    def __init__(self, root=os.path.expanduser('./encoding/data'), transform=None,
+                 target_transform=None, train=True, cv_val = False, hold_test = False,  **kwargs):
+        if train:
+            split = 'train'
+        elif hold_test:
+            split = 'test'
+        elif cv_val:
+            split = 'CV'
+        else:
+            split = 'val'
+            
         root = os.path.join(root, self.BASE_DIR, split)
         super(ImageNetDataset, self).__init__(
             root, transform, target_transform)

@@ -1,0 +1,6 @@
+README.md
+torch_encoding.egg-info/PKG-INFO
+torch_encoding.egg-info/SOURCES.txt
+torch_encoding.egg-info/dependency_links.txt
+torch_encoding.egg-info/requires.txt
+torch_encoding.egg-info/top_level.txt
