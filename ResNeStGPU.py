@@ -1,4 +1,3 @@
-
 import os
 import time
 import argparse
@@ -25,7 +24,7 @@ class Options():
                             help='training dataset (default: imagenet)')
         parser.add_argument('--base-size', type=int, default=None,
                             help='base image size')
-        parser.add_argument('--crop-size', type=int, default=224,
+        parser.add_argument('--crop-size', type=int, default=271,
                             help='crop image size')
         parser.add_argument('--label-smoothing', type=float, default=0.0,
                             help='label-smoothing (default eta: 0.0)')
@@ -51,6 +50,7 @@ class Options():
                             help='final dropout prob. default is 0.')
         # Testing params
         parser.add_argument('--FiveFold', action='store_true', default=False, help="5fold Validation")
+        
         # training params
         parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                             help='batch size for training (default: 128)')
@@ -103,27 +103,55 @@ class Options():
         args = self.parser.parse_args()
         return args
 
-def main():
-    dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    print('Using device:', dev)
-    print("GPU Devices:", torch.cuda.device_count())
-    print("Data preparing")
-    DataPrepare()
-    print("Programme Start")
-    args = Options().parse()
-    ngpus_per_node = torch.cuda.device_count()
-    args.world_size = ngpus_per_node * args.world_size
-    args.lr = args.lr * args.world_size
-    print("Training Start")
-    mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
-
 # global variable
 best_pred = 0.0
 acclist_train = []
 acclist_val = []
+acclist_train_set = []
+acclist_val_set = []
+fold = 1
+result_file = "./ResNeSt_result.txt"
 
+
+
+def main():
+    recording = open(result_file, 'a')
+    recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
+    dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    print('Using device:', dev)
+    print("GPU Devices:", torch.cuda.device_count())
+    print("Programme Start")
+    args = Options().parse()
+    recording.write("Arguments\n" + str(args) + "\n")
+    print("Data preparing")
+    if args.FiveFold:
+        DataPrepareFiveFold()
+    else:
+        DataPrepare()
+    ngpus_per_node = torch.cuda.device_count()
+    args.world_size = ngpus_per_node * args.world_size
+    args.lr = args.lr * args.world_size
+    print("Training Start")
+    
+    if args.FiveFold:
+        train_round = 6
+    else:
+        train_round = 1
+    global fold, acclist_train, acclist_val
+    for f in range(1,train_round):
+        recording.write("Round " + str(f) + "\n")
+        print("Train Round", f)
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
+        print("Train Round", f, "|", "Train Accuracy", acclist_train)
+        print("Train Round", f, "|", "Val Accuracy", acclist_val)
+        fold = fold + 1
+        
+        recording.write("====================END====================\n\n")
+    
+    print("acclist_train_set", acclist_train_set)
+    print("acclist_val_set", acclist_val_set)
+    
 def main_worker(gpu, ngpus_per_node, args):
-    print("Wroking GPU:", gpu)
     args.gpu = gpu
     args.rank = args.rank * ngpus_per_node + gpu
     print('rank: {} / {}'.format(args.rank, args.world_size))
@@ -142,14 +170,17 @@ def main_worker(gpu, ngpus_per_node, args):
     # init dataloader
     transform_train, transform_val = encoding.transforms.get_transform(
             args.dataset, args.base_size, args.crop_size, args.rand_aug)
-    trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
-                                             transform=transform_train, train=True, download=True)
+    
+    validation_loader = {}
     if args.FiveFold:
-        cv_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
+        global fold
+        trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
+                                             transform=transform_train, train=True, download=True)
+        cv_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
                                            transform=transform_val, train=False, cv_val=True, download=True)
-        general_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
+        general_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
                                            transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
-        holdout_testset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
+        holdout_testset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
                                            transform=transform_val, train=False, cv_val=False, hold_test=True, download=True)
         
         # Training Set Fold [1,2,3,4,5] depends on the fold 
@@ -159,25 +190,34 @@ def main_worker(gpu, ngpus_per_node, args):
             num_workers=args.workers, pin_memory=True,
             sampler=train_sampler)
 
+        # Five fold valudation
         val_sampler = torch.utils.data.distributed.DistributedSampler(cv_valset, shuffle=False)
         val_loader = torch.utils.data.DataLoader(
             cv_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=val_sampler)
         
+        # Validation for overfitting test
         general_val_sampler = torch.utils.data.distributed.DistributedSampler(general_valset, shuffle=False)
         general_val_loader = torch.utils.data.DataLoader(
             general_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=general_val_sampler)
         
+        # Validation for holdout
         holdout_test_sampler = torch.utils.data.distributed.DistributedSampler(holdout_testset, shuffle=False)
         holdout_test_loader = torch.utils.data.DataLoader(
             holdout_testset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=holdout_test_sampler)
+       
+        validation_loader = {"val_loader":val_loader,
+                             "general_val_loader":general_val_loader,
+                             "holdout_test_loader":holdout_test_loader}
         
     else:
+        trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
+                                             transform=transform_train, train=True, download=True)
         valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
                                            transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
 
@@ -193,6 +233,7 @@ def main_worker(gpu, ngpus_per_node, args):
             num_workers=args.workers, pin_memory=True,
             sampler=val_sampler)
     
+        validation_loader = {"val_loader":val_loader}
     # init the model
     model_kwargs = {}
     if args.pretrained:
@@ -221,8 +262,8 @@ def main_worker(gpu, ngpus_per_node, args):
                                   nr_iters, 0.0, args.dropblock_prob)
         model.apply(apply_drop_prob)
 
-    if args.gpu == 0:
-        print(model)
+#     if args.gpu == 0:
+#         print(model)
 
     if args.mixup > 0:
         train_loader = MixUpWrapper(args.mixup, 1000, train_loader, args.gpu)
@@ -281,6 +322,7 @@ def main_worker(gpu, ngpus_per_node, args):
                              iters_per_epoch=len(train_loader),
                              warmup_epochs=args.warmup_epochs)
     def train(epoch):
+        recording = open(result_file, 'a')
         train_sampler.set_epoch(epoch)
         model.train()
         losses = AverageMeter()
@@ -306,16 +348,19 @@ def main_worker(gpu, ngpus_per_node, args):
                     print('Batch: %d| Loss: %.3f'%(batch_idx, losses.avg))
                 else:
                     print('Batch: %d| Loss: %.3f | Top1: %.3f'%(batch_idx, losses.avg, top1.avg))
+        recording.write('Train | GPU: %d | Loss: %.3f | Top1: %.3f\n'%(args.gpu, losses.avg, top1.avg))
 
         acclist_train += [top1.avg]
 
-    def validate(epoch):
+    def validate(epoch, val_type):
+        recording = open(result_file, 'a')
+        loader = validation_loader[val_type]
         model.eval()
         top1 = AverageMeter()
         top5 = AverageMeter()
         global best_pred, acclist_train, acclist_val
         is_best = False
-        for batch_idx, (data, target) in enumerate(val_loader):
+        for batch_idx, (data, target) in enumerate(loader):
             data, target = data.cuda(args.gpu), target.cuda(args.gpu)
             with torch.no_grad():
                 output = model(data)
@@ -325,19 +370,20 @@ def main_worker(gpu, ngpus_per_node, args):
 
         # sum all
         sum1, cnt1, sum5, cnt5 = torch_dist_sum(args.gpu, top1.sum, top1.count, top5.sum, top5.count)
-
+            
+        top1_acc = sum(sum1) / sum(cnt1)
+        top5_acc = sum(sum5) / sum(cnt5)
+        
+        recording.write(val_type + ' | GPU: %d | : Top1: %.3f\n'%(args.gpu, top1_acc))
+        
         if args.eval:
             if args.gpu == 0:
-                top1_acc = sum(sum1) / sum(cnt1)
-                top5_acc = sum(sum5) / sum(cnt5)
                 print('Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
             return
 
         if args.gpu == 0:
-            top1_acc = sum(sum1) / sum(cnt1)
-            top5_acc = sum(sum5) / sum(cnt5)
             print('Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
-
+            
             # save checkpoint
             acclist_val += [top1_acc]
             if top1_acc > best_pred:
@@ -351,7 +397,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 'acclist_train':acclist_train,
                 'acclist_val':acclist_val,
                 }, args=args, is_best=is_best)
-
+            
     if args.export:
         if args.gpu == 0:
             torch.save(model.module.state_dict(), args.export + '.pth')
@@ -361,11 +407,19 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(args.start_epoch)
         return
 
+    # Execution
+    
+        
     for epoch in range(args.start_epoch, args.epochs):
         tic = time.time()
         train(epoch)
+        recording.write(str(acclist_train) + "\n")
+        acclist_train_set.append(acclist_train)
         if epoch % 10 == 0:# or epoch == args.epochs-1:
-            validate(epoch)
+            validate(epoch, "general_val_loader")
+            recording.write(str(acclist_val) + "\n")
+            acclist_val_set.append(acclist_val)
+        validate(epoch, "val_loader")
         elapsed = time.time() - tic
         if args.gpu == 0:
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
