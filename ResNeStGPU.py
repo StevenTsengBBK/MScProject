@@ -125,7 +125,7 @@ def main():
     recording.write("Arguments\n" + str(args) + "\n")
     print("Data preparing")
     if args.FiveFold:
-        DataPrepareFiveFold()
+        FullDataPrepareFiveFold()
     else:
         DataPrepare()
     ngpus_per_node = torch.cuda.device_count()
@@ -378,11 +378,11 @@ def main_worker(gpu, ngpus_per_node, args):
         
         if args.eval:
             if args.gpu == 0:
-                print('Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
+                print(val_type + 'Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
             return
 
         if args.gpu == 0:
-            print('Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
+            print(val_type + 'Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
             
             # save checkpoint
             acclist_val += [top1_acc]
@@ -409,7 +409,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # Execution
     
-        
+    recording = open(result_file, 'a')
     for epoch in range(args.start_epoch, args.epochs):
         tic = time.time()
         train(epoch)
@@ -418,8 +418,8 @@ def main_worker(gpu, ngpus_per_node, args):
         if epoch % 10 == 0:# or epoch == args.epochs-1:
             validate(epoch, "general_val_loader")
             recording.write(str(acclist_val) + "\n")
-            acclist_val_set.append(acclist_val)
-        validate(epoch, "val_loader")
+        acclist_val_set.append(acclist_val)
+#         validate(epoch, "val_loader")
         elapsed = time.time() - tic
         if args.gpu == 0:
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
