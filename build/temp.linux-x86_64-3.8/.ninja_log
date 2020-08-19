@@ -1,0 +1,15 @@
+# ninja log v5
+1	4459	1597806508809255256	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/cpu/encoding_cpu.o	4a84e66f4c4feea
+1	17609	1597806521925277618	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/cpu/syncbn_cpu.o	74a2b86521f6874a
+2	17675	1597806521985277720	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/cpu/roi_align_cpu.o	2e49af209423baa2
+3	18216	1597806522533278655	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/cpu/nms_cpu.o	ec7a17a5cb92c2b5
+2	18841	1597806523149279706	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/cpu/rectify_cpu.o	1c7596a749fdc9c0
+2	22055	1597806526349285164	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/cpu/operator.o	7205f38d037e6aae
+4	12624	1597806539969308383	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/lib_ssd.o	b552ba6867c894f
+2	22505	1597806549801325150	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/operator.o	a6d5219a27c2b3f1
+3	36954	1597806564297349862	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/nms_kernel.o	4cb104f5b6b5d190
+5	38079	1597806565421351778	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/syncbn_kernel.o	ab155d99572cdbe7
+6	38230	1597806565573352037	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/rectify_cuda.o	203a20ca1fa79d8d
+3	38628	1597806565969352713	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/encoding_kernel.o	643391ecfecdf3be
+4	38672	1597806566017352795	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/activation_kernel.o	789668ee84d668bd
+5	38890	1597806566233353163	/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/build/temp.linux-x86_64-3.8/mnt/nfs/resdata1/ytseng01/ProjectEnv/MScProject/ResNeSt/encoding/lib/gpu/roi_align_kernel.o	25ecf6b7dd1ce76d

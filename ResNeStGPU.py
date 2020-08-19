@@ -1,3 +1,9 @@
+##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+## Referenced by: Hang Zhang https://github.com/zhanghang1989/PyTorch-Encoding/
+## Created by: Yao-I Tseng
+## Email: mrsuccess1203@gmail.com
+##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 import os
 import time
 import argparse
@@ -30,16 +36,22 @@ class Options():
                             help='label-smoothing (default eta: 0.0)')
         parser.add_argument('--mixup', type=float, default=0.0,
                             help='mixup (default eta: 0.0)')
-        parser.add_argument('--rand-aug', action='store_true', 
+        parser.add_argument('--rand-aug', action='store_true',
                             default=False, help='random augment')
-        # model params 
+        parser.add_argument('--CLASS1_LABELID', type=int, default=4, metavar='N',
+                            help='Label 1')
+        parser.add_argument('--CLASS2_LABELID', type=int, default=5, metavar='N',
+                            help='Label 2')
+        parser.add_argument('--Download_folder', type=str, default='Colour_MFCC',
+                            help='Download folder')
+        # model params
         parser.add_argument('--model', type=str, default='densenet',
                             help='network model type (default: densenet)')
-        parser.add_argument('--rectify', action='store_true', 
+        parser.add_argument('--rectify', action='store_true',
                             default=False, help='rectify convolution')
-        parser.add_argument('--rectify-avg', action='store_true', 
+        parser.add_argument('--rectify-avg', action='store_true',
                             default=False, help='rectify convolution')
-        parser.add_argument('--pretrained', action='store_true', 
+        parser.add_argument('--pretrained', action='store_true',
                             default=False, help='load pretrianed mode')
         parser.add_argument('--last-gamma', action='store_true', default=False,
                             help='whether to init gamma of the last BN layer in \
@@ -50,7 +62,7 @@ class Options():
                             help='final dropout prob. default is 0.')
         # Testing params
         parser.add_argument('--FiveFold', action='store_true', default=False, help="5fold Validation")
-        
+
         # training params
         parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                             help='batch size for training (default: 128)')
@@ -58,22 +70,22 @@ class Options():
                             help='batch size for testing (default: 256)')
         parser.add_argument('--epochs', type=int, default=120, metavar='N',
                             help='number of epochs to train (default: 600)')
-        parser.add_argument('--start_epoch', type=int, default=0, 
+        parser.add_argument('--start_epoch', type=int, default=0,
                             metavar='N', help='the epoch number to start (default: 1)')
         parser.add_argument('--workers', type=int, default=8,
                             metavar='N', help='dataloader threads')
         # optimizer
         parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
                             help='learning rate (default: 0.1)')
-        parser.add_argument('--lr-scheduler', type=str, default='cos', 
+        parser.add_argument('--lr-scheduler', type=str, default='cos',
                             help='learning rate scheduler (default: cos)')
         parser.add_argument('--warmup-epochs', type=int, default=0,
                             help='number of warmup epochs (default: 0)')
-        parser.add_argument('--momentum', type=float, default=0.9, 
+        parser.add_argument('--momentum', type=float, default=0.9,
                             metavar='M', help='SGD momentum (default: 0.9)')
-        parser.add_argument('--weight-decay', type=float, default=1e-4, 
+        parser.add_argument('--weight-decay', type=float, default=1e-4,
                             metavar ='M', help='SGD weight decay (default: 1e-4)')
-        parser.add_argument('--no-bn-wd', action='store_true', 
+        parser.add_argument('--no-bn-wd', action='store_true',
                             default=False, help='no bias decay')
         # seed
         parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -107,50 +119,49 @@ class Options():
 best_pred = 0.0
 acclist_train = []
 acclist_val = []
+cv_acclist_val = []
 acclist_train_set = []
 acclist_val_set = []
 fold = 1
 result_file = "./ResNeSt_result.txt"
-
-
+output_file = "./Output_result.txt"
+target_file = "./Target_result.txt"
 
 def main():
-    recording = open(result_file, 'a')
-    recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
     dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     print('Using device:', dev)
     print("GPU Devices:", torch.cuda.device_count())
     print("Programme Start")
     args = Options().parse()
-    recording.write("Arguments\n" + str(args) + "\n")
+
     print("Data preparing")
     if args.FiveFold:
-        FullDataPrepareFiveFold()
+        DataPrepareFiveFold(args.CLASS1_LABELID, args.CLASS2_LABELID, args.Download_folder)
     else:
-        DataPrepare()
+        DataPrepare(args.CLASS1_LABELID, args.CLASS2_LABELID, args.Download_folder)
     ngpus_per_node = torch.cuda.device_count()
     args.world_size = ngpus_per_node * args.world_size
     args.lr = args.lr * args.world_size
     print("Training Start")
-    
+
     if args.FiveFold:
         train_round = 6
     else:
         train_round = 1
-    global fold, acclist_train, acclist_val
+
+    recording = open(result_file, 'a')
+    output_recording = open(output_file, 'a')
+    target_recording = open(target_file, 'a')
+    recording.write("Arguments\n" + str(args) + "\n")
+    output_recording.write("Arguments\n" + str(args) + "\n")
+    target_recording.write("Arguments\n" + str(args) + "\n")
+       
     for f in range(1,train_round):
-        recording.write("Round " + str(f) + "\n")
-        print("Train Round", f)
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
-        print("Train Round", f, "|", "Train Accuracy", acclist_train)
-        print("Train Round", f, "|", "Val Accuracy", acclist_val)
-        fold = fold + 1
-        
-        recording.write("====================END====================\n\n")
-    
+
     print("acclist_train_set", acclist_train_set)
     print("acclist_val_set", acclist_val_set)
-    
+
 def main_worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
     args.rank = args.rank * ngpus_per_node + gpu
@@ -161,7 +172,7 @@ def main_worker(gpu, ngpus_per_node, args):
                             rank=args.rank)
     torch.cuda.set_device(args.gpu)
     # init the args
-    global best_pred, acclist_train, acclist_val
+    global best_pred, acclist_train, acclist_val, fold
 
     if args.gpu == 0:
         print(args)
@@ -170,7 +181,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # init dataloader
     transform_train, transform_val = encoding.transforms.get_transform(
             args.dataset, args.base_size, args.crop_size, args.rand_aug)
-    
+
     validation_loader = {}
     if args.FiveFold:
         global fold
@@ -180,10 +191,11 @@ def main_worker(gpu, ngpus_per_node, args):
                                            transform=transform_val, train=False, cv_val=True, download=True)
         general_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
                                            transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
-        holdout_testset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
+        holdout_testset = encoding.datasets.get_dataset(args.dataset,
+                                                        root=os.path.expanduser('./encoding/data/round'+str(fold)),
                                            transform=transform_val, train=False, cv_val=False, hold_test=True, download=True)
-        
-        # Training Set Fold [1,2,3,4,5] depends on the fold 
+
+        # Training Set Fold [1,2,3,4,5] depends on the fold
         train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
         train_loader = torch.utils.data.DataLoader(
             trainset, batch_size=args.batch_size, shuffle=False,
@@ -196,25 +208,25 @@ def main_worker(gpu, ngpus_per_node, args):
             cv_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=val_sampler)
-        
+
         # Validation for overfitting test
         general_val_sampler = torch.utils.data.distributed.DistributedSampler(general_valset, shuffle=False)
         general_val_loader = torch.utils.data.DataLoader(
             general_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=general_val_sampler)
-        
+
         # Validation for holdout
         holdout_test_sampler = torch.utils.data.distributed.DistributedSampler(holdout_testset, shuffle=False)
         holdout_test_loader = torch.utils.data.DataLoader(
             holdout_testset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=holdout_test_sampler)
-       
+
         validation_loader = {"val_loader":val_loader,
                              "general_val_loader":general_val_loader,
                              "holdout_test_loader":holdout_test_loader}
-        
+
     else:
         trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
                                              transform=transform_train, train=True, download=True)
@@ -232,9 +244,10 @@ def main_worker(gpu, ngpus_per_node, args):
             valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=val_sampler)
-    
+
         validation_loader = {"val_loader":val_loader}
     # init the model
+
     model_kwargs = {}
     if args.pretrained:
         model_kwargs['pretrained'] = True
@@ -251,7 +264,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.rectify:
         model_kwargs['rectified_conv'] = True
         model_kwargs['rectify_avg'] = args.rectify_avg
-    
+
     model = encoding.models.get_model(args.model, **model_kwargs)
 
     if args.dropblock_prob > 0.0:
@@ -262,8 +275,8 @@ def main_worker(gpu, ngpus_per_node, args):
                                   nr_iters, 0.0, args.dropblock_prob)
         model.apply(apply_drop_prob)
 
-#     if args.gpu == 0:
-#         print(model)
+    if args.gpu == 0:
+        print(model)
 
     if args.mixup > 0:
         train_loader = MixUpWrapper(args.mixup, 1000, train_loader, args.gpu)
@@ -323,6 +336,9 @@ def main_worker(gpu, ngpus_per_node, args):
                              warmup_epochs=args.warmup_epochs)
     def train(epoch):
         recording = open(result_file, 'a')
+        output_recording = open(output_file, 'a')
+        target_recording = open(target_file, 'a')
+
         train_sampler.set_epoch(epoch)
         model.train()
         losses = AverageMeter()
@@ -334,6 +350,10 @@ def main_worker(gpu, ngpus_per_node, args):
                 data, target = data.cuda(args.gpu), target.cuda(args.gpu)
             optimizer.zero_grad()
             output = model(data)
+            target_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
+            target_recording.write(str(target))
+            output_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
+            output_recording.write(str(output))
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
@@ -348,46 +368,57 @@ def main_worker(gpu, ngpus_per_node, args):
                     print('Batch: %d| Loss: %.3f'%(batch_idx, losses.avg))
                 else:
                     print('Batch: %d| Loss: %.3f | Top1: %.3f'%(batch_idx, losses.avg, top1.avg))
-        recording.write('Train | GPU: %d | Loss: %.3f | Top1: %.3f\n'%(args.gpu, losses.avg, top1.avg))
+        recording.write('Train | Round: %d | Epoch: %d | GPU: %d | Loss: %.3f | Top1: %.3f\n'%(fold, epoch, args.gpu, losses.avg, top1.avg))
 
-        acclist_train += [top1.avg]
+        acclist_train += [float(top1.avg)]
 
     def validate(epoch, val_type):
         recording = open(result_file, 'a')
+        output_recording = open(output_file, 'a')
+        target_recording = open(target_file, 'a')
+
         loader = validation_loader[val_type]
         model.eval()
         top1 = AverageMeter()
         top5 = AverageMeter()
-        global best_pred, acclist_train, acclist_val
+        global best_pred, acclist_val, cv_acclist_val
         is_best = False
         for batch_idx, (data, target) in enumerate(loader):
             data, target = data.cuda(args.gpu), target.cuda(args.gpu)
             with torch.no_grad():
                 output = model(data)
+                target_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
+                target_recording.write(str(target))
+                output_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
+                output_recording.write(str(output))
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 top1.update(acc1[0], data.size(0))
                 top5.update(acc5[0], data.size(0))
 
         # sum all
         sum1, cnt1, sum5, cnt5 = torch_dist_sum(args.gpu, top1.sum, top1.count, top5.sum, top5.count)
-            
+
         top1_acc = sum(sum1) / sum(cnt1)
         top5_acc = sum(sum5) / sum(cnt5)
-        
-        recording.write(val_type + ' | GPU: %d | : Top1: %.3f\n'%(args.gpu, top1_acc))
-        
+
+        recording.write("Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | : Top1: %.3f\n'%(fold, epoch, args.gpu, top1_acc))
+
         if args.eval:
             if args.gpu == 0:
-                print(val_type + 'Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
+                print(val_type + ' Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
             return
 
         if args.gpu == 0:
-            print(val_type + 'Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
-            
+            print(val_type + ' Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
+
+            if val_type == "general_val_loader":
+                acclist_val += [top1_acc]
+            elif val_type == "val_loader":
+                cv_acclist_val += [top1_acc]
+
             # save checkpoint
-            acclist_val += [top1_acc]
             if top1_acc > best_pred:
-                best_pred = top1_acc 
+                best_pred = top1_acc
                 is_best = True
             encoding.utils.save_checkpoint({
                 'epoch': epoch,
@@ -397,7 +428,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 'acclist_train':acclist_train,
                 'acclist_val':acclist_val,
                 }, args=args, is_best=is_best)
-            
+
     if args.export:
         if args.gpu == 0:
             torch.save(model.module.state_dict(), args.export + '.pth')
@@ -408,21 +439,20 @@ def main_worker(gpu, ngpus_per_node, args):
         return
 
     # Execution
-    
-    recording = open(result_file, 'a')
+    start = time.time()
     for epoch in range(args.start_epoch, args.epochs):
         tic = time.time()
         train(epoch)
-        recording.write(str(acclist_train) + "\n")
         acclist_train_set.append(acclist_train)
-        if epoch % 10 == 0:# or epoch == args.epochs-1:
-            validate(epoch, "general_val_loader")
-            recording.write(str(acclist_val) + "\n")
+        validate(epoch, "general_val_loader")
         acclist_val_set.append(acclist_val)
-#         validate(epoch, "val_loader")
         elapsed = time.time() - tic
         if args.gpu == 0:
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
+    validate(epoch, "val_loader")
+    end = time.time()
+
+    print(str(end - start))
 
     if args.gpu == 0:
         encoding.utils.save_checkpoint({
@@ -433,6 +463,8 @@ def main_worker(gpu, ngpus_per_node, args):
             'acclist_train':acclist_train,
             'acclist_val':acclist_val,
             }, args=args, is_best=False)
+
+    fold = fold + 1
 
 if __name__ == "__main__":
     main()

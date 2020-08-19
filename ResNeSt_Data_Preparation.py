@@ -6,6 +6,8 @@
 import os
 from shutil import copyfile
 import numpy as np
+import shutil
+import time
 
 class_label = ["air_conditioner"
     , "car_horn"
@@ -18,145 +20,151 @@ class_label = ["air_conditioner"
     , "siren"
     , "street_music"]
 
-IMAGE_TYPE = ["MFCC", "STFT"]
-DOWNLOAD_DIR = os.path.expanduser("./Colour_MFCC")
 DATASET_DIR = os.path.expanduser("./encoding/data")
 
-CLASS1_LABELID = 4
-CLASS2_LABELID = 5
-
-def DataPrepare():
+def DataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
+    DOWNLOAD_DIR = os.path.expanduser("./" + Download_folder)
+    
     # Load dataset in class subfolders
     if os.path.exists(DATASET_DIR):
-        print("Datasets prepared. Skip preparation step.")
-    else:
-        print("Standard Dataset Importing.")
+        print("Directory Existed. Deleting Directory!")
+        shutil.rmtree(DATASET_DIR)
 
-        # Create Directories
-        os.makedirs(DATASET_DIR + "/urbansound8k/train")
-        os.makedirs(DATASET_DIR + "/urbansound8k/val")
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/")
-        # for l in class_label:
-        #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
-        #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
-        #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS1_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS1_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS1_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS2_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS2_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS2_LABELID])
+    print("Standard Dataset Importing.")
 
-        # Classifying and split into train and test set
+    # Create Directories
+    os.makedirs(DATASET_DIR + "/urbansound8k/train")
+    os.makedirs(DATASET_DIR + "/urbansound8k/val")
+    os.makedirs(DATASET_DIR + "/urbansound8k/test/")
+    # for l in class_label:
+    #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
+    #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
+    #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
+    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS1_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS1_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS1_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS2_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS2_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS2_LABELID])
 
-        for fold in range(1, 11):
-            fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
-            if fold in [8, 9]:
-                print("Validation set importing...")
-                for file in fileList:
-                    if not file.startswith('.'):
-                        class_id = int(file.split("-")[1])
-                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
-                            label = class_label[class_id]
-                            copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                     DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
-                print("Validation set imported")
-            elif fold == 10:
-                print("Test set importing...")
-                for file in fileList:
-                    if not file.startswith('.'):
-                        class_id = int(file.split("-")[1])
-                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
-                            label = class_label[class_id]
-                            copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                     DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
-                print("Test set imported")
-            else:
-                print("Train set importing...")
-                for file in fileList:
-                    if not file.startswith('.'):
-                        class_id = int(file.split("-")[1])
-                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
-                            label = class_label[class_id]
-                            copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                     DATASET_DIR + "/urbansound8k/train/" + label + "/" + file)
-                print("Train set imported")
+    # Classifying and split into train and test set
+
+    for fold in range(1, 11):
+        fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
+        if fold in [8, 9]:
+            print("Validation set importing...")
+            for file in fileList:
+                if not file.startswith('.'):
+                    class_id = int(file.split("-")[1])
+                    if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                        label = class_label[class_id]
+                        copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                 DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
+            print("Validation set imported")
+        elif fold == 10:
+            print("Test set importing...")
+            for file in fileList:
+                if not file.startswith('.'):
+                    class_id = int(file.split("-")[1])
+                    if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                        label = class_label[class_id]
+                        copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                 DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
+            print("Test set imported")
+        else:
+            print("Train set importing...")
+            for file in fileList:
+                if not file.startswith('.'):
+                    class_id = int(file.split("-")[1])
+                    if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                        label = class_label[class_id]
+                        copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                 DATASET_DIR + "/urbansound8k/train/" + label + "/" + file)
+            print("Train set imported")
+    
+    timestamp()
     print("Standard Dataset Import Succeeded.")
 
 # Mini Dataset version is used for reducing training time
 # Each class will have at most 100 sample in training set and 10 samples in test set
-def MiniDataPrepare():
+def MiniDataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
+    DOWNLOAD_DIR = os.path.expanduser("./" + Download_folder)
+    
     train_set_class_count = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     test_set_class_count = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     # Load dataset in class subfolders
     if os.path.exists(DATASET_DIR):
-        print("Datasets prepared. Skip preparation step.")
-    else:
-        print("Mini Dataset Importing.")
+        print("Directory Existed. Deleting Directory!")
+        shutil.rmtree(DATASET_DIR)
+    
+    print("Mini Dataset Importing.")
 
-        # Create Directories
-        os.makedirs(DATASET_DIR + "/urbansound8k/train")
-        os.makedirs(DATASET_DIR + "/urbansound8k/val")
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/")
-        # for l in class_label:
-        #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
-        #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
-        #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS1_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS1_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS1_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS2_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS2_LABELID])
-        os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS2_LABELID])
+    # Create Directories
+    os.makedirs(DATASET_DIR + "/urbansound8k/train")
+    os.makedirs(DATASET_DIR + "/urbansound8k/val")
+    os.makedirs(DATASET_DIR + "/urbansound8k/test/")
+    # for l in class_label:
+    #     os.makedirs(DATASET_DIR + "/urbansound8k/train/" + l)
+    #     os.makedirs(DATASET_DIR + "/urbansound8k/val/" + l)
+    #     os.makedirs(DATASET_DIR + "/urbansound8k/test/" + l)
+    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS1_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS1_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS1_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/train/" + class_label[CLASS2_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/val/" + class_label[CLASS2_LABELID])
+    os.makedirs(DATASET_DIR + "/urbansound8k/test/" + class_label[CLASS2_LABELID])
 
-        # Classifying and split into train and test set
-        for fold in range(1, 11):
-            fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
-            if fold in [8, 9]:
-                print("Validation set importing...")
-                for file in fileList:
-                    if not file.startswith('.'):
-                        class_id = int(file.split("-")[1])
-                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
-                            if not test_set_class_count[class_id] == 10:
-                                label = class_label[class_id]
-                                copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                         DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
-                                test_set_class_count[int(class_id)] += 1
-                print("Validation set imported")
-            elif fold == 10:
-                print("Test set importing...")
-                for file in fileList:
-                    if not file.startswith('.'):
-                        class_id = int(file.split("-")[1])
-                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+    # Classifying and split into train and test set
+    for fold in range(1, 11):
+        fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
+        if fold in [8, 9]:
+            print("Validation set importing...")
+            for file in fileList:
+                if not file.startswith('.'):
+                    class_id = int(file.split("-")[1])
+                    if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                        if not test_set_class_count[class_id] == 10:
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                     DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
-                print("Test set imported")
-            else:
-                print("Train set importing...")
-                for file in fileList:
-                    if not file.startswith('.'):
-                        class_id = int(file.split("-")[1])
-                        if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
-                            if not train_set_class_count[class_id] == 100:
-                                label = class_label[class_id]
-                                copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                         DATASET_DIR + "/urbansound8k/train/" + label + "/" + file)
-                                train_set_class_count[int(class_id)] += 1
-                print("Train set imported")
-
+                                     DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
+                            test_set_class_count[int(class_id)] += 1
+            print("Validation set imported")
+        elif fold == 10:
+            print("Test set importing...")
+            for file in fileList:
+                if not file.startswith('.'):
+                    class_id = int(file.split("-")[1])
+                    if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                        label = class_label[class_id]
+                        copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                 DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
+            print("Test set imported")
+        else:
+            print("Train set importing...")
+            for file in fileList:
+                if not file.startswith('.'):
+                    class_id = int(file.split("-")[1])
+                    if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                        if not train_set_class_count[class_id] == 100:
+                            label = class_label[class_id]
+                            copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                     DATASET_DIR + "/urbansound8k/train/" + label + "/" + file)
+                            train_set_class_count[int(class_id)] += 1
+            print("Train set imported")
+    
+    timestamp()
     print("Mini Dataset Import Succeeded.")
 
-def DataPrepareFiveFold():
+def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
+    DOWNLOAD_DIR = os.path.expanduser("./" + Download_folder)
+    
     # Create Directories
     if os.path.exists(DATASET_DIR):
-        print("Datasets prepared. Skip preparation step.")
-        return
-    else:
-        print("Five Fold Dataset Importing.")
+        print("Directory Existed. Deleting Directory!")
+        shutil.rmtree(DATASET_DIR)
+    
+    print("Five Fold Dataset Importing.")
 
     # Load dataset in class subfolders
     CV_sets = np.array([1])
@@ -226,15 +234,19 @@ def DataPrepareFiveFold():
                                      TEST_DIR + "/" + label + "/" + file)
                 print("Test set imported")
         CV_sets = CV_sets + 1
+    
+    timestamp()
     print("Five Fold Dataset Import Succeeded.")
     
-def FullDataPrepareFiveFold():
+def FullDataPrepareFiveFold(Download_folder):
+    DOWNLOAD_DIR = os.path.expanduser("./" + Download_folder)
+    
     # Create Directories
     if os.path.exists(DATASET_DIR):
-        print("Datasets prepared. Skip preparation step.")
-        return
-    else:
-        print("Five Fold Dataset Importing.")
+        print("Directory Existed. Deleting Directory!")
+        shutil.rmtree(DATASET_DIR)
+    
+    print("Five Fold Dataset Importing.")
 
     # Load dataset in class subfolders
     CV_sets = np.array([1])
@@ -297,4 +309,21 @@ def FullDataPrepareFiveFold():
                                  TEST_DIR + "/" + label + "/" + file)
                 print("Test set imported")
         CV_sets = CV_sets + 1
+    
+    timestamp()
     print("Five Fold Dataset Import Succeeded.")
+
+def timestamp():
+    result_file = "./ResNeSt_result.txt"
+    output_file = "./Output_result.txt"
+    target_file = "./Target_result.txt"
+    
+    recording = open(result_file, 'a')
+    output_recording = open(output_file, 'a')
+    target_recording = open(target_file, 'a')
+    recording.write("===================================================\n")
+    output_recording.write("===================================================\n")
+    target_recording.write("===================================================\n")
+    recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
+    output_recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
+    target_recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
