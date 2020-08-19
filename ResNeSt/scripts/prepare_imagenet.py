@@ -65,7 +65,7 @@ def extract_val(tar_fname, target_dir, with_rec=False, num_thread=1):
     # move images to proper subfolders
     subprocess.call(["wget -qO- https://raw.githubusercontent.com/soumith/imagenetloader.torch/master/valprep.sh | bash"],
                     cwd=target_dir, shell=True)
-
+    
 
 def main():
     args = parse_args()

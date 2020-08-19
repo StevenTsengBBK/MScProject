@@ -3,7 +3,7 @@
 ## Email: zhanghang0704@gmail.com
 ## Copyright (c) 2020
 ##
-## LICENSE file in the root directory of this source tree
+## LICENSE file in the root directory of this source tree 
 ##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 import os
@@ -36,16 +36,16 @@ class Options():
                             help='label-smoothing (default eta: 0.0)')
         parser.add_argument('--mixup', type=float, default=0.0,
                             help='mixup (default eta: 0.0)')
-        parser.add_argument('--rand-aug', action='store_true',
+        parser.add_argument('--rand-aug', action='store_true', 
                             default=False, help='random augment')
-        # model params
+        # model params 
         parser.add_argument('--model', type=str, default='densenet',
                             help='network model type (default: densenet)')
-        parser.add_argument('--rectify', action='store_true',
+        parser.add_argument('--rectify', action='store_true', 
                             default=False, help='rectify convolution')
-        parser.add_argument('--rectify-avg', action='store_true',
+        parser.add_argument('--rectify-avg', action='store_true', 
                             default=False, help='rectify convolution')
-        parser.add_argument('--pretrained', action='store_true',
+        parser.add_argument('--pretrained', action='store_true', 
                             default=False, help='load pretrianed mode')
         parser.add_argument('--last-gamma', action='store_true', default=False,
                             help='whether to init gamma of the last BN layer in \
@@ -61,22 +61,22 @@ class Options():
                             help='batch size for testing (default: 256)')
         parser.add_argument('--epochs', type=int, default=120, metavar='N',
                             help='number of epochs to train (default: 600)')
-        parser.add_argument('--start_epoch', type=int, default=0,
+        parser.add_argument('--start_epoch', type=int, default=0, 
                             metavar='N', help='the epoch number to start (default: 1)')
         parser.add_argument('--workers', type=int, default=8,
                             metavar='N', help='dataloader threads')
         # optimizer
         parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
                             help='learning rate (default: 0.1)')
-        parser.add_argument('--lr-scheduler', type=str, default='cos',
+        parser.add_argument('--lr-scheduler', type=str, default='cos', 
                             help='learning rate scheduler (default: cos)')
         parser.add_argument('--warmup-epochs', type=int, default=0,
                             help='number of warmup epochs (default: 0)')
-        parser.add_argument('--momentum', type=float, default=0.9,
+        parser.add_argument('--momentum', type=float, default=0.9, 
                             metavar='M', help='SGD momentum (default: 0.9)')
-        parser.add_argument('--weight-decay', type=float, default=1e-4,
+        parser.add_argument('--weight-decay', type=float, default=1e-4, 
                             metavar ='M', help='SGD weight decay (default: 1e-4)')
-        parser.add_argument('--no-bn-wd', action='store_true',
+        parser.add_argument('--no-bn-wd', action='store_true', 
                             default=False, help='no bias decay')
         # seed
         parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -137,9 +137,9 @@ def main_worker(gpu, ngpus_per_node, args):
     # init dataloader
     transform_train, transform_val = encoding.transforms.get_transform(
             args.dataset, args.base_size, args.crop_size, args.rand_aug)
-    trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('~/encoding/data'),
+    trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('~/.encoding/data'),
                                              transform=transform_train, train=True, download=True)
-    valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('~/encoding/data'),
+    valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('~/.encoding/data'),
                                            transform=transform_val, train=False, download=True)
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
@@ -153,7 +153,7 @@ def main_worker(gpu, ngpus_per_node, args):
         valset, batch_size=args.test_batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True,
         sampler=val_sampler)
-
+    
     # init the model
     model_kwargs = {}
     if args.pretrained:
@@ -171,7 +171,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.rectify:
         model_kwargs['rectified_conv'] = True
         model_kwargs['rectify_avg'] = args.rectify_avg
-
+    
     model = encoding.models.get_model(args.model, **model_kwargs)
 
     if args.dropblock_prob > 0.0:
@@ -302,7 +302,7 @@ def main_worker(gpu, ngpus_per_node, args):
             # save checkpoint
             acclist_val += [top1_acc]
             if top1_acc > best_pred:
-                best_pred = top1_acc
+                best_pred = top1_acc 
                 is_best = True
             encoding.utils.save_checkpoint({
                 'epoch': epoch,
