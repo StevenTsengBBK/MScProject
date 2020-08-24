@@ -52,7 +52,6 @@ def DataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
     for fold in range(1, 11):
         fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
         if fold in [8, 9]:
-            print("Validation set importing...")
             for file in fileList:
                 if not file.startswith('.'):
                     class_id = int(file.split("-")[1])
@@ -60,9 +59,7 @@ def DataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
-            print("Validation set imported")
         elif fold == 10:
-            print("Test set importing...")
             for file in fileList:
                 if not file.startswith('.'):
                     class_id = int(file.split("-")[1])
@@ -70,9 +67,7 @@ def DataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
-            print("Test set imported")
         else:
-            print("Train set importing...")
             for file in fileList:
                 if not file.startswith('.'):
                     class_id = int(file.split("-")[1])
@@ -80,7 +75,6 @@ def DataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  DATASET_DIR + "/urbansound8k/train/" + label + "/" + file)
-            print("Train set imported")
     
     timestamp()
     print("Standard Dataset Import Succeeded.")
@@ -119,7 +113,6 @@ def MiniDataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
     for fold in range(1, 11):
         fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
         if fold in [8, 9]:
-            print("Validation set importing...")
             for file in fileList:
                 if not file.startswith('.'):
                     class_id = int(file.split("-")[1])
@@ -129,9 +122,7 @@ def MiniDataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      DATASET_DIR + "/urbansound8k/val/" + label + "/" + file)
                             test_set_class_count[int(class_id)] += 1
-            print("Validation set imported")
         elif fold == 10:
-            print("Test set importing...")
             for file in fileList:
                 if not file.startswith('.'):
                     class_id = int(file.split("-")[1])
@@ -139,9 +130,7 @@ def MiniDataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  DATASET_DIR + "/urbansound8k/test/" + label + "/" + file)
-            print("Test set imported")
         else:
-            print("Train set importing...")
             for file in fileList:
                 if not file.startswith('.'):
                     class_id = int(file.split("-")[1])
@@ -151,7 +140,6 @@ def MiniDataPrepare(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      DATASET_DIR + "/urbansound8k/train/" + label + "/" + file)
                             train_set_class_count[int(class_id)] += 1
-            print("Train set imported")
     
     timestamp()
     print("Mini Dataset Import Succeeded.")
@@ -194,7 +182,6 @@ def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
         for fold in range(1, 11):
             fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
             if fold in validation_sets:
-                print("Validation set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
@@ -202,9 +189,7 @@ def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      VAL_DIR + "/" + label + "/" + file)
-                print("Validation set imported")
             elif fold in CV_sets:
-                print("CV set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
@@ -212,9 +197,7 @@ def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      CV_DIR + "/" + label + "/" + file)
-                print("CV set imported")
             elif fold < 6:
-                print("Train set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
@@ -222,9 +205,7 @@ def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      TRAIN_DIR + "/" + label + "/" + file)
-                print("Train set imported")
             else:
-                print("Test set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
@@ -232,7 +213,6 @@ def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID, Download_folder):
                             label = class_label[class_id]
                             copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                      TEST_DIR + "/" + label + "/" + file)
-                print("Test set imported")
         CV_sets = CV_sets + 1
     
     timestamp()
@@ -273,41 +253,33 @@ def FullDataPrepareFiveFold(Download_folder):
         for fold in range(1, 11):
             fileList = os.listdir(DOWNLOAD_DIR + '/fold' + str(fold))
             if fold in validation_sets:
-                print("Validation set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  VAL_DIR + "/" + label + "/" + file)
-                print("Validation set imported")
             elif fold in CV_sets:
-                print("CV set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  CV_DIR + "/" + label + "/" + file)
-                print("CV set imported")
             elif fold < 6:
-                print("Train set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  TRAIN_DIR + "/" + label + "/" + file)
-                print("Train set imported")
             else:
-                print("Test set importing...")
                 for file in fileList:
                     if not file.startswith('.'):
                         class_id = int(file.split("-")[1])
                         label = class_label[class_id]
                         copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                  TEST_DIR + "/" + label + "/" + file)
-                print("Test set imported")
         CV_sets = CV_sets + 1
     
     timestamp()
@@ -327,3 +299,6 @@ def timestamp():
     recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
     output_recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
     target_recording.write(time.strftime("%b %d %Y %H:%M:%S", time.localtime()) + "\n")
+    recording.close()
+    output_recording.close()
+    target_recording.close()

@@ -42,7 +42,7 @@ class Options():
                             help='Label 1')
         parser.add_argument('--CLASS2_LABELID', type=int, default=5, metavar='N',
                             help='Label 2')
-        parser.add_argument('--Download_folder', type=str, default='Colour_MFCC',
+        parser.add_argument('--Download_folder', type=str, default='Colour_Large_MFCC',
                             help='Download folder')
         # model params
         parser.add_argument('--model', type=str, default='densenet',
@@ -60,6 +60,8 @@ class Options():
                             help='DropBlock prob. default is 0.')
         parser.add_argument('--final-drop', type=float, default=0,
                             help='final dropout prob. default is 0.')
+        parser.add_argument('--class-num', type=float, default=2,
+                            help='Number of classes.')
         # Testing params
         parser.add_argument('--FiveFold', action='store_true', default=False, help="5fold Validation")
 
@@ -122,7 +124,6 @@ acclist_val = []
 cv_acclist_val = []
 acclist_train_set = []
 acclist_val_set = []
-fold = 1
 result_file = "./ResNeSt_result.txt"
 output_file = "./Output_result.txt"
 target_file = "./Target_result.txt"
@@ -142,6 +143,8 @@ def main():
     ngpus_per_node = torch.cuda.device_count()
     args.world_size = ngpus_per_node * args.world_size
     args.lr = args.lr * args.world_size
+    
+    args.kfold = 1
     print("Training Start")
 
     if args.FiveFold:
@@ -157,10 +160,10 @@ def main():
     target_recording.write("Arguments\n" + str(args) + "\n")
        
     for f in range(1,train_round):
+        args.kfold = f
+        print("Round", args.kfold)
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
-
-    print("acclist_train_set", acclist_train_set)
-    print("acclist_val_set", acclist_val_set)
+        
 
 def main_worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
@@ -172,7 +175,7 @@ def main_worker(gpu, ngpus_per_node, args):
                             rank=args.rank)
     torch.cuda.set_device(args.gpu)
     # init the args
-    global best_pred, acclist_train, acclist_val, fold
+    global best_pred, acclist_train, acclist_val
 
     if args.gpu == 0:
         print(args)
@@ -184,15 +187,15 @@ def main_worker(gpu, ngpus_per_node, args):
 
     validation_loader = {}
     if args.FiveFold:
-        global fold
-        trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
+        print("Loading Fold", args.kfold)
+        trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
                                              transform=transform_train, train=True, download=True)
-        cv_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
+        cv_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
                                            transform=transform_val, train=False, cv_val=True, download=True)
-        general_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(fold)),
+        general_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
                                            transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
         holdout_testset = encoding.datasets.get_dataset(args.dataset,
-                                                        root=os.path.expanduser('./encoding/data/round'+str(fold)),
+                                                        root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
                                            transform=transform_val, train=False, cv_val=False, hold_test=True, download=True)
 
         # Training Set Fold [1,2,3,4,5] depends on the fold
@@ -264,6 +267,8 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.rectify:
         model_kwargs['rectified_conv'] = True
         model_kwargs['rectify_avg'] = args.rectify_avg
+        
+    model_kwargs['num_classes'] = args.class_num
 
     model = encoding.models.get_model(args.model, **model_kwargs)
 
@@ -274,9 +279,6 @@ def main_worker(gpu, ngpus_per_node, args):
         apply_drop_prob = partial(reset_dropblock, args.warmup_epochs*len(train_loader),
                                   nr_iters, 0.0, args.dropblock_prob)
         model.apply(apply_drop_prob)
-
-    if args.gpu == 0:
-        print(model)
 
     if args.mixup > 0:
         train_loader = MixUpWrapper(args.mixup, 1000, train_loader, args.gpu)
@@ -336,7 +338,6 @@ def main_worker(gpu, ngpus_per_node, args):
                              warmup_epochs=args.warmup_epochs)
     def train(epoch):
         recording = open(result_file, 'a')
-        output_recording = open(output_file, 'a')
         target_recording = open(target_file, 'a')
 
         train_sampler.set_epoch(epoch)
@@ -350,66 +351,67 @@ def main_worker(gpu, ngpus_per_node, args):
                 data, target = data.cuda(args.gpu), target.cuda(args.gpu)
             optimizer.zero_grad()
             output = model(data)
-            target_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
-            target_recording.write(str(target))
-            output_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
-            output_recording.write(str(output))
+            epoch_info = 'Train | Round: %d | Epoch: %d | GPU: %d | batch_idx: %d | ' %(args.kfold, epoch, args.gpu, batch_idx)
+            target_recording.write(epoch_info + str(target) + "\n")
+            
+            
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
 
             if not args.mixup:
-                acc1 = accuracy(output, target, topk=(1,))
+                acc1 = accuracy(output, target, epoch_info, topk=(1,))
                 top1.update(acc1[0], data.size(0))
 
             losses.update(loss.item(), data.size(0))
-            if batch_idx % 100 == 0 and args.gpu == 0:
-                if args.mixup:
-                    print('Batch: %d| Loss: %.3f'%(batch_idx, losses.avg))
-                else:
-                    print('Batch: %d| Loss: %.3f | Top1: %.3f'%(batch_idx, losses.avg, top1.avg))
-        recording.write('Train | Round: %d | Epoch: %d | GPU: %d | Loss: %.3f | Top1: %.3f\n'%(fold, epoch, args.gpu, losses.avg, top1.avg))
+        if args.mixup:
+            print('Loss: %.3f'%(losses.avg))
+        else:
+            print('Loss: %.3f | Top1: %.3f'%(losses.avg, top1.avg))
+        string_builder = 'Train | Round: %d | Epoch: %d | GPU: %d | Loss: %.3f | Top1: %.3f'%(args.kfold, epoch, args.gpu, losses.avg, top1.avg)
+        string_builder = string_builder + " | Dataset: " + args.Download_folder + " | Model: " + args.model + "\n"
+        recording.write(string_builder)
 
         acclist_train += [float(top1.avg)]
 
     def validate(epoch, val_type):
         recording = open(result_file, 'a')
-        output_recording = open(output_file, 'a')
         target_recording = open(target_file, 'a')
 
         loader = validation_loader[val_type]
         model.eval()
         top1 = AverageMeter()
-        top5 = AverageMeter()
         global best_pred, acclist_val, cv_acclist_val
         is_best = False
+        
         for batch_idx, (data, target) in enumerate(loader):
             data, target = data.cuda(args.gpu), target.cuda(args.gpu)
+            
             with torch.no_grad():
                 output = model(data)
-                target_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
-                target_recording.write(str(target))
-                output_recording.write('Train | Round: %d | Epoch: %d | GPU: %d\n'%(fold, epoch, args.gpu))
-                output_recording.write(str(output))
-                acc1, acc5 = accuracy(output, target, topk=(1, 5))
+                
+                epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | batch_idx: %d | ' %(args.kfold, epoch, args.gpu, batch_idx)
+                target_recording.write(epoch_info + str(target) + "\n")
+                
+                acc1 = accuracy(output, target, epoch_info, topk=(1,))
                 top1.update(acc1[0], data.size(0))
-                top5.update(acc5[0], data.size(0))
 
         # sum all
-        sum1, cnt1, sum5, cnt5 = torch_dist_sum(args.gpu, top1.sum, top1.count, top5.sum, top5.count)
+        sum1, cnt1 = torch_dist_sum(args.gpu, top1.sum, top1.count)
 
         top1_acc = sum(sum1) / sum(cnt1)
-        top5_acc = sum(sum5) / sum(cnt5)
 
-        recording.write("Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | : Top1: %.3f\n'%(fold, epoch, args.gpu, top1_acc))
+        string_builder = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | Top1: %.3f'%(args.kfold, epoch, args.gpu, top1_acc)
+        string_builder = string_builder + " | Dataset: " + args.Download_folder + " | Model: " + args.model + "\n"
+        recording.write(string_builder)
 
         if args.eval:
             if args.gpu == 0:
-                print(val_type + ' Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
+                print(val_type + ' Validation: Top1: %.3f'%(top1_acc))
             return
 
         if args.gpu == 0:
-            print(val_type + ' Validation: Top1: %.3f | Top5: %.3f'%(top1_acc, top5_acc))
+            print(val_type + ' Validation: Top1: %.3f'%(top1_acc))
 
             if val_type == "general_val_loader":
                 acclist_val += [top1_acc]
@@ -463,8 +465,6 @@ def main_worker(gpu, ngpus_per_node, args):
             'acclist_train':acclist_train,
             'acclist_val':acclist_val,
             }, args=args, is_best=False)
-
-    fold = fold + 1
 
 if __name__ == "__main__":
     main()

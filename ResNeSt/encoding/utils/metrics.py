@@ -16,16 +16,23 @@ __all__ = ['accuracy', 'get_pixacc_miou',
            'SegmentationMetric', 'batch_intersection_union', 'batch_pix_accuracy',
            'pixel_accuracy', 'intersection_and_union']
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, epoch_info, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
     with torch.no_grad():
+        output_file = "./Output_result.txt"
+        
         maxk = max(topk)
         batch_size = target.size(0)
 
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred))
-
+        
+        output_recording = open(output_file, 'a')
+        cor = str(correct).replace("[[", " | ").replace("]]", " | ").replace("\n         ", "")
+        output_recording.write(epoch_info + cor + "\n")
+        output_recording.close()
+        
         res = []
         for k in topk:
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
