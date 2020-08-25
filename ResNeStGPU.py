@@ -22,6 +22,10 @@ from ResNeSt.encoding.utils import (accuracy, AverageMeter, MixUpWrapper, LR_Sch
 
 from ResNeSt_Data_Preparation import *
 
+# Evaluation
+from sklearn.metrics import classification_report, roc_auc_score, roc_curve, confusion_matrix
+import matplotlib.pyplot as plt
+
 class Options():
     def __init__(self):
         # data settings
@@ -431,6 +435,85 @@ def main_worker(gpu, ngpus_per_node, args):
                 'acclist_val':acclist_val,
                 }, args=args, is_best=is_best)
 
+    def evaluation(model, val_loader):
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        
+        model.eval()
+        
+        val_loss = 0
+        val_correct = 0
+        
+        score_list = torch.Tensor([]).to(device)
+        pred_list = torch.Tensor([]).to(device).long()
+        target_list = torch.Tensor([]).to(device).long()
+        path_list = []
+        
+        for batch_idx, (data, target) in enumerate(val_loader):
+            data, target = data.to(device), target.to(device)
+       
+        # Compute the loss
+        with torch.no_grad():
+            output = model(data)
+        
+        # Log loss
+        val_loss += criterion(output, target.long()).item()
+
+        
+        # Calculate the number of correctly classified examples
+        pred = output.argmax(dim=1, keepdim=True)
+        val_correct += pred.eq(target.long().view_as(pred)).sum().item()
+        
+        # Bookkeeping 
+        score_list   = torch.cat([score_list, nn.Softmax(dim = 1)(output)[:,1].squeeze()])
+        pred_list    = torch.cat([pred_list, pred.squeeze()])
+        target_list  = torch.cat([target_list, target.squeeze()])
+        
+    
+        classification_metrics = classification_report(target_list.tolist(), pred_list.tolist(),
+                                                      target_names = ['engine_idling', 'drilling'],
+                                                      output_dict= True)
+
+
+        # sensitivity is the recall of the positive class
+        sensitivity = classification_metrics['engine_idling']['recall']
+
+        # specificity is the recall of the negative class 
+        specificity = classification_metrics['drilling']['recall']
+
+        # accuracy
+        accuracy = classification_metrics['accuracy']
+
+        # confusion matrix
+        conf_matrix = confusion_matrix(target_list.tolist(), pred_list.tolist())
+
+        # roc score
+        roc_score = roc_auc_score(target_list.tolist(), score_list.tolist())
+
+        # plot the roc curve
+        fpr, tpr, _ = roc_curve(target_list.tolist(), score_list.tolist())
+        plt.plot(fpr, tpr, label = "Area under ROC = {:.4f}".format(roc_score))
+        plt.plot([(0,0),(1,1)],"r-")
+        plt.legend(loc = 'best')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.savefig("ROC/ROC+" + args.model + "_" + args.Download_folder + "Round_" + str(args.kfold) + ".png")
+
+
+        # put together values
+        metrics_dict = {"Accuracy": accuracy,
+                        "Sensitivity": sensitivity,
+                        "Specificity": specificity,
+                        "Roc_score"  : roc_score, 
+                        "Confusion Matrix": conf_matrix,
+                        "Validation Loss": val_loss / len(val_loader),
+                        "score_list":  score_list.tolist(),
+                        "pred_list": pred_list.tolist(),
+                        "target_list": target_list.tolist(),
+                        "paths": path_list}
+
+
+        return metrics_dict
+            
     if args.export:
         if args.gpu == 0:
             torch.save(model.module.state_dict(), args.export + '.pth')
@@ -451,7 +534,22 @@ def main_worker(gpu, ngpus_per_node, args):
         elapsed = time.time() - tic
         if args.gpu == 0:
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
-    validate(epoch, "val_loader")
+            
+    if args.FiveFold and args.gpu == 0:
+        print("check")
+        metrics_dict = evaluation(model, val_loader)
+        print('------------------- Test Performance --------------------------------------')
+        print("Accuracy \t {:.3f}".format(metrics_dict['Accuracy']))
+        print("Sensitivity \t {:.3f}".format(metrics_dict['Sensitivity']))
+        print("Specificity \t {:.3f}".format(metrics_dict['Specificity']))
+        print("Area Under ROC \t {:.3f}".format(metrics_dict['Roc_score']))
+        print("------------------------------------------------------------------------------")
+        recording = open(result_file, 'a')
+        recording.write("Accuracy \t {:.3f}\n".format(metrics_dict['Accuracy']))
+        recording.write("Sensitivity \t {:.3f}\n".format(metrics_dict['Sensitivity']))
+        recording.write("Specificity \t {:.3f}\n".format(metrics_dict['Specificity']))
+        recording.write("Area Under ROC \t {:.3f}\n".format(metrics_dict['Roc_score']))
+        recording.close()
     end = time.time()
 
     print(str(end - start))
