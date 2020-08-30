@@ -78,7 +78,7 @@ class Options():
                             help='number of epochs to train (default: 600)')
         parser.add_argument('--start_epoch', type=int, default=0,
                             metavar='N', help='the epoch number to start (default: 1)')
-        parser.add_argument('--workers', type=int, default=8,
+        parser.add_argument('--workers', type=int, default=4,
                             metavar='N', help='dataloader threads')
         # optimizer
         parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
@@ -141,13 +141,13 @@ def main():
 
     print("Data preparing")
     if args.FiveFold:
-        DataPrepareFiveFold(args.CLASS1_LABELID, args.CLASS2_LABELID, args.Download_folder)
+        DataPrepareFiveFold(args.CLASS1_LABELID, args.CLASS2_LABELID)
     else:
-        DataPrepare(args.CLASS1_LABELID, args.CLASS2_LABELID, args.Download_folder)
+        DataPrepare(args.CLASS1_LABELID, args.CLASS2_LABELID)
     ngpus_per_node = torch.cuda.device_count()
     args.world_size = ngpus_per_node * args.world_size
     args.lr = args.lr * args.world_size
-    
+
     args.kfold = 1
     print("Training Start")
 
@@ -162,12 +162,12 @@ def main():
     recording.write("Arguments\n" + str(args) + "\n")
     output_recording.write("Arguments\n" + str(args) + "\n")
     target_recording.write("Arguments\n" + str(args) + "\n")
-       
+
     for f in range(1,train_round):
         args.kfold = f
         print("Round", args.kfold)
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
-        
+
 
 def main_worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
@@ -192,14 +192,18 @@ def main_worker(gpu, ngpus_per_node, args):
     validation_loader = {}
     if args.FiveFold:
         print("Loading Fold", args.kfold)
-        trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
+        if args.Download_folder == "Colour_Large_MFCC":
+            root = os.path.expanduser('./encoding/data/Colour_Large_MFCC/round'+str(args.kfold))
+        else:
+            root = os.path.expanduser('./encoding/data/Colour_Large_STFT/round'+str(args.kfold))
+        trainset = encoding.datasets.get_dataset(args.dataset, root=root,
                                              transform=transform_train, train=True, download=True)
-        cv_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
+        test_valset = encoding.datasets.get_dataset(args.dataset, root=root,
                                            transform=transform_val, train=False, cv_val=True, download=True)
-        general_valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
+        valset = encoding.datasets.get_dataset(args.dataset, root=root,
                                            transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
         holdout_testset = encoding.datasets.get_dataset(args.dataset,
-                                                        root=os.path.expanduser('./encoding/data/round'+str(args.kfold)),
+                                                        root=root,
                                            transform=transform_val, train=False, cv_val=False, hold_test=True, download=True)
 
         # Training Set Fold [1,2,3,4,5] depends on the fold
@@ -210,18 +214,18 @@ def main_worker(gpu, ngpus_per_node, args):
             sampler=train_sampler)
 
         # Five fold valudation
-        val_sampler = torch.utils.data.distributed.DistributedSampler(cv_valset, shuffle=False)
-        val_loader = torch.utils.data.DataLoader(
-            cv_valset, batch_size=args.test_batch_size, shuffle=False,
+        test_sampler = torch.utils.data.distributed.DistributedSampler(test_valset, shuffle=False)
+        test_loader = torch.utils.data.DataLoader(
+            test_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
-            sampler=val_sampler)
+            sampler=test_sampler)
 
         # Validation for overfitting test
-        general_val_sampler = torch.utils.data.distributed.DistributedSampler(general_valset, shuffle=False)
-        general_val_loader = torch.utils.data.DataLoader(
-            general_valset, batch_size=args.test_batch_size, shuffle=False,
+        val_sampler = torch.utils.data.distributed.DistributedSampler(valset, shuffle=False)
+        val_loader = torch.utils.data.DataLoader(
+            valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
-            sampler=general_val_sampler)
+            sampler=val_sampler)
 
         # Validation for holdout
         holdout_test_sampler = torch.utils.data.distributed.DistributedSampler(holdout_testset, shuffle=False)
@@ -230,14 +234,18 @@ def main_worker(gpu, ngpus_per_node, args):
             num_workers=args.workers, pin_memory=True,
             sampler=holdout_test_sampler)
 
-        validation_loader = {"val_loader":val_loader,
-                             "general_val_loader":general_val_loader,
+        validation_loader = {"test_loader":test_loader,
+                             "val_loader":val_loader,
                              "holdout_test_loader":holdout_test_loader}
 
     else:
-        trainset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
+        if args.Download_folder == "Colour_Large_MFCC":
+            root = os.path.expanduser('./encoding/data/Colour_Large_MFCC/')
+        else:
+            root = os.path.expanduser('./encoding/data/Colour_Large_STFT/')
+        trainset = encoding.datasets.get_dataset(args.dataset, root=root,
                                              transform=transform_train, train=True, download=True)
-        valset = encoding.datasets.get_dataset(args.dataset, root=os.path.expanduser('./encoding/data'),
+        valset = encoding.datasets.get_dataset(args.dataset, root=root,
                                            transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
 
         train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
@@ -246,13 +254,13 @@ def main_worker(gpu, ngpus_per_node, args):
             num_workers=args.workers, pin_memory=True,
             sampler=train_sampler)
 
-        val_sampler = torch.utils.data.distributed.DistributedSampler(valset, shuffle=False)
-        val_loader = torch.utils.data.DataLoader(
-            valset, batch_size=args.test_batch_size, shuffle=False,
+        test_sampler = torch.utils.data.distributed.DistributedSampler(valset, shuffle=False)
+        test_loader = torch.utils.data.DataLoader(
+            test_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
-            sampler=val_sampler)
+            sampler=test_sampler)
 
-        validation_loader = {"val_loader":val_loader}
+        validation_loader = {"test_loader":test_loader}
     # init the model
 
     model_kwargs = {}
@@ -271,7 +279,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.rectify:
         model_kwargs['rectified_conv'] = True
         model_kwargs['rectify_avg'] = args.rectify_avg
-        
+
     model_kwargs['num_classes'] = args.class_num
 
     model = encoding.models.get_model(args.model, **model_kwargs)
@@ -341,179 +349,189 @@ def main_worker(gpu, ngpus_per_node, args):
                              iters_per_epoch=len(train_loader),
                              warmup_epochs=args.warmup_epochs)
     def train(epoch):
-        recording = open(result_file, 'a')
         target_recording = open(target_file, 'a')
+        output_recording = open(output_file, 'a')
 
+        # Recording List
+        score_list = []
+        pred_list = []
+        target_list = []
+        path_list = []
+        
         train_sampler.set_epoch(epoch)
+        
         model.train()
-        losses = AverageMeter()
-        top1 = AverageMeter()
+        
         global best_pred, acclist_train
         for batch_idx, (data, target) in enumerate(train_loader):
             scheduler(optimizer, batch_idx, epoch, best_pred)
-            if not args.mixup:
-                data, target = data.cuda(args.gpu), target.cuda(args.gpu)
+            data, target = data.cuda(args.gpu), target.cuda(args.gpu)
             optimizer.zero_grad()
             output = model(data)
-            epoch_info = 'Train | Round: %d | Epoch: %d | GPU: %d | batch_idx: %d | ' %(args.kfold, epoch, args.gpu, batch_idx)
-            target_recording.write(epoch_info + str(target) + "\n")
             
+            # Calculate the number of correctly classified examples
+            pred = output.argmax(dim=1, keepdim=True)
             
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
-
-            if not args.mixup:
-                acc1 = accuracy(output, target, epoch_info, topk=(1,))
-                top1.update(acc1[0], data.size(0))
-
-            losses.update(loss.item(), data.size(0))
-        if args.mixup:
-            print('Loss: %.3f'%(losses.avg))
-        else:
-            print('Loss: %.3f | Top1: %.3f'%(losses.avg, top1.avg))
-        string_builder = 'Train | Round: %d | Epoch: %d | GPU: %d | Loss: %.3f | Top1: %.3f'%(args.kfold, epoch, args.gpu, losses.avg, top1.avg)
-        string_builder = string_builder + " | Dataset: " + args.Download_folder + " | Model: " + args.model + "\n"
-        recording.write(string_builder)
-
-        acclist_train += [float(top1.avg)]
-
-    def validate(epoch, val_type):
-        recording = open(result_file, 'a')
-        target_recording = open(target_file, 'a')
-
-        loader = validation_loader[val_type]
-        model.eval()
-        top1 = AverageMeter()
-        global best_pred, acclist_val, cv_acclist_val
-        is_best = False
-        
-        for batch_idx, (data, target) in enumerate(loader):
-            data, target = data.cuda(args.gpu), target.cuda(args.gpu)
             
-            with torch.no_grad():
-                output = model(data)
-                
-                epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | batch_idx: %d | ' %(args.kfold, epoch, args.gpu, batch_idx)
-                target_recording.write(epoch_info + str(target) + "\n")
-                
-                acc1 = accuracy(output, target, epoch_info, topk=(1,))
-                top1.update(acc1[0], data.size(0))
+            # Bookkeeping
+            score_list.extend(nn.Softmax(dim = 1)(output)[:,1].squeeze().tolist())
+            pred_list.extend(pred.squeeze().tolist())
+            target_list.extend(target.squeeze().tolist())
 
-        # sum all
-        sum1, cnt1 = torch_dist_sum(args.gpu, top1.sum, top1.count)
-
-        top1_acc = sum(sum1) / sum(cnt1)
-
-        string_builder = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | Top1: %.3f'%(args.kfold, epoch, args.gpu, top1_acc)
-        string_builder = string_builder + " | Dataset: " + args.Download_folder + " | Model: " + args.model + "\n"
-        recording.write(string_builder)
-
-        if args.eval:
-            if args.gpu == 0:
-                print(val_type + ' Validation: Top1: %.3f'%(top1_acc))
-            return
-
-        if args.gpu == 0:
-            print(val_type + ' Validation: Top1: %.3f'%(top1_acc))
-
-            if val_type == "general_val_loader":
-                acclist_val += [top1_acc]
-            elif val_type == "val_loader":
-                cv_acclist_val += [top1_acc]
-
-            # save checkpoint
-            if top1_acc > best_pred:
-                best_pred = top1_acc
-                is_best = True
-            encoding.utils.save_checkpoint({
-                'epoch': epoch,
-                'state_dict': model.module.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'best_pred': best_pred,
-                'acclist_train':acclist_train,
-                'acclist_val':acclist_val,
-                }, args=args, is_best=is_best)
-
-    def evaluation(model, val_loader):
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        
-        model.eval()
-        
-        val_loss = 0
-        val_correct = 0
-        
-        score_list = torch.Tensor([]).to(device)
-        pred_list = torch.Tensor([]).to(device).long()
-        target_list = torch.Tensor([]).to(device).long()
-        path_list = []
-        
-        for batch_idx, (data, target) in enumerate(val_loader):
-            data, target = data.to(device), target.to(device)
-       
-        # Compute the loss
-        with torch.no_grad():
-            output = model(data)
-        
-        # Log loss
-        val_loss += criterion(output, target.long()).item()
-
-        
-        # Calculate the number of correctly classified examples
-        pred = output.argmax(dim=1, keepdim=True)
-        val_correct += pred.eq(target.long().view_as(pred)).sum().item()
-        
-        # Bookkeeping 
-        score_list   = torch.cat([score_list, nn.Softmax(dim = 1)(output)[:,1].squeeze()])
-        pred_list    = torch.cat([pred_list, pred.squeeze()])
-        target_list  = torch.cat([target_list, target.squeeze()])
-        
-    
-        classification_metrics = classification_report(target_list.tolist(), pred_list.tolist(),
+        classification_metrics = classification_report(target_list, pred_list,
                                                       target_names = ['engine_idling', 'drilling'],
                                                       output_dict= True)
 
+        accuracy = classification_metrics['accuracy']    
+        
+        print('Training Accuracy: %.3f'%(accuracy))
+        
+         # Recording
+        epoch_info = 'Train | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)
+        
+        # Target
+        target_recording.write(epoch_info + str(target_list) + "\n")
+        # Probability Score and Prediction
+        output_recording.write("Predict " + epoch_info + str(pred_list) + "\n")
+        output_recording.write("Score " + epoch_info + str(score_list) + "\n")
+        
+        # Closing File
+        target_recording.close()
+        output_recording.close()
 
-        # sensitivity is the recall of the positive class
-        sensitivity = classification_metrics['engine_idling']['recall']
+    def test(epoch, val_type):
+        # Opening Recording Files
+        target_recording = open(target_file, 'a')
+        output_recording = open(output_file, 'a')
 
-        # specificity is the recall of the negative class 
-        specificity = classification_metrics['drilling']['recall']
+        loader = validation_loader[val_type]
+        model.eval()
+        global best_pred, acclist_val, cv_acclist_val
+        is_best = False
 
-        # accuracy
+        # Recording List
+        score_list = []
+        pred_list = []
+        target_list = []
+        path_list = []
+
+        for batch_idx, (data, target) in enumerate(loader):
+            data, target = data.cuda(args.gpu), target.cuda(args.gpu)
+
+            with torch.no_grad():
+                output = model(data)
+
+                # Calculate the number of correctly classified examples
+                pred = output.argmax(dim=1, keepdim=True)
+                
+                # Bookkeeping
+                score_list.extend(nn.Softmax(dim = 1)(output)[:,1].squeeze().tolist())
+                pred_list.extend(pred.squeeze().tolist())
+                target_list.extend(target.squeeze().tolist())
+
+        classification_metrics = classification_report(target_list, pred_list,
+                                                      target_names = ['engine_idling', 'drilling'],
+                                                      output_dict= True)
+
         accuracy = classification_metrics['accuracy']
 
-        # confusion matrix
-        conf_matrix = confusion_matrix(target_list.tolist(), pred_list.tolist())
+        # Recording
+        epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)
+        
+        # Target
+        target_recording.write(epoch_info + str(target_list) + "\n")
+        # Probability Score and Prediction
+        output_recording.write("Predict " + epoch_info + str(pred_list) + "\n")
+        output_recording.write("Score " + epoch_info + str(score_list) + "\n")
+        
+        # Closing File
+        target_recording.close()
+        output_recording.close()
 
-        # roc score
-        roc_score = roc_auc_score(target_list.tolist(), score_list.tolist())
+        if args.gpu == 0:
+            print(val_type + ' Validation: Accuracy: %.3f'%(accuracy))
 
-        # plot the roc curve
-        fpr, tpr, _ = roc_curve(target_list.tolist(), score_list.tolist())
-        plt.plot(fpr, tpr, label = "Area under ROC = {:.4f}".format(roc_score))
-        plt.plot([(0,0),(1,1)],"r-")
-        plt.legend(loc = 'best')
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.savefig("ROC/ROC+" + args.model + "_" + args.Download_folder + "Round_" + str(args.kfold) + ".png")
+            if accuracy > best_pred:
+                best_pred = accuracy
+                is_best = True
+
+    def validation(epoch, val_type):
+        # Opening Recording Files
+        target_recording = open(target_file, 'a')
+        output_recording = open(output_file, 'a')
+        
+        loader = validation_loader[val_type]
+
+        model.eval()
+
+        val_loss = 0
+        val_correct = 0
+
+        # Recording List
+        score_list = []
+        pred_list = []
+        target_list = []
+        path_list = []
+
+        for batch_idx, (data, target) in enumerate(loader):
+            data, target = data.cuda(args.gpu), target.cuda(args.gpu)
+
+            # Compute the loss
+            with torch.no_grad():
+                output = model(data)
+
+                # Log loss
+                val_loss += criterion(output, target.long()).item()
 
 
-        # put together values
-        metrics_dict = {"Accuracy": accuracy,
-                        "Sensitivity": sensitivity,
-                        "Specificity": specificity,
-                        "Roc_score"  : roc_score, 
-                        "Confusion Matrix": conf_matrix,
-                        "Validation Loss": val_loss / len(val_loader),
-                        "score_list":  score_list.tolist(),
-                        "pred_list": pred_list.tolist(),
-                        "target_list": target_list.tolist(),
-                        "paths": path_list}
+                # Calculate the number of correctly classified examples
+                pred = output.argmax(dim=1, keepdim=True)
+                val_correct += pred.eq(target.long().view_as(pred)).sum().item()
 
+                # Bookkeeping
+                score_list.extend(nn.Softmax(dim = 1)(output)[:,1].squeeze().tolist())
+                pred_list.extend(pred.squeeze().tolist())
+                target_list.extend(target.squeeze().tolist())
 
-        return metrics_dict
+        # Recording
+        epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)
+        
+        # Target
+        target_recording.write(epoch_info + str(target_list) + "\n")
+        # Probability Score and Prediction
+        output_recording.write("Predict " + epoch_info + str(pred_list) + "\n")
+        output_recording.write("Score " + epoch_info + str(score_list) + "\n")
+        
+        # Closing File
+        target_recording.close()
+        output_recording.close()
+        
+        # Accuracy and ROC Plot
+        classification_metrics = classification_report(target_list, pred_list,
+                                                      target_names = ['engine_idling', 'drilling'],
+                                                      output_dict= True)
+
+        accuracy = classification_metrics['accuracy']
+
+        print(val_type + ' Validation: Accuracy: %.3f'%(accuracy))
+
+        # ROC score
+        if epoch == args.epochs-1:
             
+            roc_score = roc_auc_score(target_list, score_list)
+
+            # plot the roc curve
+            fpr, tpr, _ = roc_curve(target_list, score_list)
+            plt.plot(fpr, tpr, label = "Area under ROC = {:.4f}".format(roc_score))
+            plt.plot([(0,0),(1,1)],"r-")
+            plt.legend(loc = 'best')
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.savefig("ROC/ROC+" + args.model + "_" + args.Download_folder + "Round_" + str(args.kfold) + ".png")
+
     if args.export:
         if args.gpu == 0:
             torch.save(model.module.state_dict(), args.export + '.pth')
@@ -529,27 +547,13 @@ def main_worker(gpu, ngpus_per_node, args):
         tic = time.time()
         train(epoch)
         acclist_train_set.append(acclist_train)
-        validate(epoch, "general_val_loader")
+        test(epoch, "test_loader")
         acclist_val_set.append(acclist_val)
         elapsed = time.time() - tic
         if args.gpu == 0:
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
-            
-    if args.FiveFold and args.gpu == 0:
-        print("check")
-        metrics_dict = evaluation(model, val_loader)
-        print('------------------- Test Performance --------------------------------------')
-        print("Accuracy \t {:.3f}".format(metrics_dict['Accuracy']))
-        print("Sensitivity \t {:.3f}".format(metrics_dict['Sensitivity']))
-        print("Specificity \t {:.3f}".format(metrics_dict['Specificity']))
-        print("Area Under ROC \t {:.3f}".format(metrics_dict['Roc_score']))
-        print("------------------------------------------------------------------------------")
-        recording = open(result_file, 'a')
-        recording.write("Accuracy \t {:.3f}\n".format(metrics_dict['Accuracy']))
-        recording.write("Sensitivity \t {:.3f}\n".format(metrics_dict['Sensitivity']))
-        recording.write("Specificity \t {:.3f}\n".format(metrics_dict['Specificity']))
-        recording.write("Area Under ROC \t {:.3f}\n".format(metrics_dict['Roc_score']))
-        recording.close()
+        validation(epoch, "val_loader")
+        
     end = time.time()
 
     print(str(end - start))
