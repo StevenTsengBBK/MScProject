@@ -131,6 +131,7 @@ acclist_val_set = []
 result_file = "./ResNeSt_result.txt"
 output_file = "./Output_result.txt"
 target_file = "./Target_result.txt"
+time_file = "./Time_result.txt"
 
 def main():
     dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -199,12 +200,12 @@ def main_worker(gpu, ngpus_per_node, args):
         trainset = encoding.datasets.get_dataset(args.dataset, root=root,
                                              transform=transform_train, train=True, download=True)
         test_valset = encoding.datasets.get_dataset(args.dataset, root=root,
-                                           transform=transform_val, train=False, cv_val=True, download=True)
+                                           transform=transform_val, train=False, cv_test=True, download=True)
         valset = encoding.datasets.get_dataset(args.dataset, root=root,
-                                           transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
+                                           transform=transform_val, train=False, cv_test=False, hold_test=False, download=True)
         holdout_testset = encoding.datasets.get_dataset(args.dataset,
                                                         root=root,
-                                           transform=transform_val, train=False, cv_val=False, hold_test=True, download=True)
+                                           transform=transform_val, train=False, cv_test=False, hold_test=True, download=True)
 
         # Training Set Fold [1,2,3,4,5] depends on the fold
         train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
@@ -213,14 +214,14 @@ def main_worker(gpu, ngpus_per_node, args):
             num_workers=args.workers, pin_memory=True,
             sampler=train_sampler)
 
-        # Five fold valudation
+        # Five fold test
         test_sampler = torch.utils.data.distributed.DistributedSampler(test_valset, shuffle=False)
         test_loader = torch.utils.data.DataLoader(
             test_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=test_sampler)
 
-        # Validation for overfitting test
+        # Five fold validation
         val_sampler = torch.utils.data.distributed.DistributedSampler(valset, shuffle=False)
         val_loader = torch.utils.data.DataLoader(
             valset, batch_size=args.test_batch_size, shuffle=False,
@@ -390,7 +391,7 @@ def main_worker(gpu, ngpus_per_node, args):
         print('Training Accuracy: %.3f'%(accuracy))
         
          # Recording
-        epoch_info = 'Train | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)
+        epoch_info = 'Train | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu) + " | Model: " + args.model + " | Data: " + args.Download_folder + " | "
         
         # Target
         target_recording.write(epoch_info + str(target_list) + "\n")
@@ -439,7 +440,7 @@ def main_worker(gpu, ngpus_per_node, args):
         accuracy = classification_metrics['accuracy']
 
         # Recording
-        epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)
+        epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu) + " | Model: " + args.model + " | Data: " + args.Download_folder + " | "
         
         # Target
         target_recording.write(epoch_info + str(target_list) + "\n")
@@ -497,7 +498,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 target_list.extend(target.squeeze().tolist())
 
         # Recording
-        epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)
+        epoch_info = "Type: " + val_type + ' | Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)  + " | Model: " + args.model + " | Data: " + args.Download_folder + " | "
         
         # Target
         target_recording.write(epoch_info + str(target_list) + "\n")
@@ -542,21 +543,29 @@ def main_worker(gpu, ngpus_per_node, args):
         return
 
     # Execution
+    # Opening Recording Files
+    
     start = time.time()
     for epoch in range(args.start_epoch, args.epochs):
+        time_recording = open(time_file, 'a')
         tic = time.time()
         train(epoch)
         acclist_train_set.append(acclist_train)
         test(epoch, "test_loader")
         acclist_val_set.append(acclist_val)
+        validation(epoch, "val_lo\ader")
         elapsed = time.time() - tic
         if args.gpu == 0:
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
-        validation(epoch, "val_loader")
-        
+        epoch_info = 'Round: %d | Epoch: %d | GPU: %d | ' %(args.kfold, epoch, args.gpu)  + " | Model: " + args.model + " | Data: " + args.Download_folder + " | "
+        time_recording.write(epoch_info + str(elapsed) + "\n")
+        time_recording.close()
     end = time.time()
-
-    print(str(end - start))
+    time_recording = open(time_file, 'a')
+    round_info = 'Total | Round: %d | GPU: %d | ' %(args.kfold, args.gpu)
+    time_recording.write(round_info + str(end - start) + "\n")             
+    print("Total Time Cost:", str(end - start))
+    time_recording.close()
 
     if args.gpu == 0:
         encoding.utils.save_checkpoint({
