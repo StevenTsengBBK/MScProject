@@ -1,6 +1,4 @@
 urbansound8k/
 runs/
 ./encoding/
-Output_result.txt
-Target_result.txt
-ResNeSt_result.txt
+*.txt

@@ -24,7 +24,7 @@ DATASET_TYPE = ["/Colour_Large_MFCC", "/Colour_Large_STFT"]
 
 DATASET_DIR = os.path.expanduser("./encoding/data")
 
-def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID):
+def DataPrepare(CLASS1_LABELID, CLASS2_LABELID):
     
     # Load dataset in class subfolders
     mflag = False
@@ -55,24 +55,26 @@ def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID):
         
         dataset_type_dir = DATASET_DIR + dtype
         
+        os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTrain")
+        os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTest")
+        HOLDOUT_TRAIN_DIR = dataset_type_dir +"/urbansound8k/holdoutTrain"
+        HOLDOUT_TEST_DIR = dataset_type_dir +"/urbansound8k/holdoutTest"
+        
         for iteration in range(1,6):
             ITER_DIR = dataset_type_dir + "/round" + str(iteration) + "/urbansound8k"
             os.makedirs(ITER_DIR +"/train")
             os.makedirs(ITER_DIR +"/val")
-            os.makedirs(ITER_DIR +"/test")
             os.makedirs(ITER_DIR + "/CV")
             os.makedirs(ITER_DIR +"/train/" + class_label[CLASS1_LABELID])
             os.makedirs(ITER_DIR +"/val/" + class_label[CLASS1_LABELID])
-            os.makedirs(ITER_DIR +"/test/" + class_label[CLASS1_LABELID])
             os.makedirs(ITER_DIR + "/CV/" + class_label[CLASS1_LABELID])
             os.makedirs(ITER_DIR +"/train/" + class_label[CLASS2_LABELID])
             os.makedirs(ITER_DIR +"/val/" + class_label[CLASS2_LABELID])
-            os.makedirs(ITER_DIR +"/test/" + class_label[CLASS2_LABELID])
             os.makedirs(ITER_DIR + "/CV/" + class_label[CLASS2_LABELID])
 
             TRAIN_DIR = ITER_DIR +"/train"
             VAL_DIR = ITER_DIR +"/val"
-            TEST_DIR = ITER_DIR + "/test"
+            
             CV_DIR = ITER_DIR + "/CV"
 
             # Classifying and split into train and test set
@@ -102,18 +104,27 @@ def DataPrepareFiveFold(CLASS1_LABELID, CLASS2_LABELID):
                                 label = class_label[class_id]
                                 copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                          TRAIN_DIR + "/" + label + "/" + file)
-                else:
+                if fold < 6 and iteration == 5:
                     for file in fileList:
                         if not file.startswith('.'):
                             class_id = int(file.split("-")[1])
                             if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
                                 label = class_label[class_id]
                                 copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
-                                         TEST_DIR + "/" + label + "/" + file)
+                                         HOLDOUT_TRAIN_DIR + "/" + label + "/" + file)
+                if fold > 7 and iteration == 5:
+                    for file in fileList:
+                        if not file.startswith('.'):
+                            class_id = int(file.split("-")[1])
+                            if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                                label = class_label[class_id]
+                                copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                         HOLDOUT_TEST_DIR + "/" + label + "/" + file)
             CV_sets = CV_sets + 1
 
         timestamp()
-    
+
+        
 def timestamp():
     result_file = "./ResNeSt_result.txt"
     output_file = "./Output_result.txt"

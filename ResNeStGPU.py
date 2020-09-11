@@ -68,6 +68,7 @@ class Options():
                             help='Number of classes.')
         # Testing params
         parser.add_argument('--FiveFold', action='store_true', default=False, help="5fold Validation")
+        parser.add_argument('--HoldOut', action='store_true', default=False, help="HoldOut Tseting")
 
         # training params
         parser.add_argument('--batch-size', type=int, default=128, metavar='N',
@@ -85,8 +86,8 @@ class Options():
                             help='learning rate (default: 0.1)')
         parser.add_argument('--lr-scheduler', type=str, default='cos',
                             help='learning rate scheduler (default: cos)')
-        parser.add_argument('--warmup-epochs', type=int, default=0,
-                            help='number of warmup epochs (default: 0)')
+        parser.add_argument('--warmup-epochs', type=int, default=5,
+                            help='number of warmup epochs (default: 5)')
         parser.add_argument('--momentum', type=float, default=0.9,
                             metavar='M', help='SGD momentum (default: 0.9)')
         parser.add_argument('--weight-decay', type=float, default=1e-4,
@@ -128,7 +129,7 @@ acclist_val = []
 cv_acclist_val = []
 acclist_train_set = []
 acclist_val_set = []
-result_file = "./ResNeSt_result.txt"
+
 output_file = "./Output_result.txt"
 target_file = "./Target_result.txt"
 time_file = "./Time_result.txt"
@@ -141,10 +142,14 @@ def main():
     args = Options().parse()
 
     print("Data preparing")
-    if args.FiveFold:
-        DataPrepareFiveFold(args.CLASS1_LABELID, args.CLASS2_LABELID)
-    else:
-        DataPrepare(args.CLASS1_LABELID, args.CLASS2_LABELID)
+    DataPrepare(args.CLASS1_LABELID, args.CLASS2_LABELID)
+
+    # Recording file Check
+    if args.HoldOut:
+        output_file = "./Output_result_holdout.txt"
+        target_file = "./Target_result_holdout.txt"
+        time_file = "./Time_result_holdout.txt"
+    
     ngpus_per_node = torch.cuda.device_count()
     args.world_size = ngpus_per_node * args.world_size
     args.lr = args.lr * args.world_size
@@ -156,13 +161,13 @@ def main():
         train_round = 6
     else:
         train_round = 1
-
-    recording = open(result_file, 'a')
+        
     output_recording = open(output_file, 'a')
     target_recording = open(target_file, 'a')
-    recording.write("Arguments\n" + str(args) + "\n")
     output_recording.write("Arguments\n" + str(args) + "\n")
     target_recording.write("Arguments\n" + str(args) + "\n")
+    output_recording.close()
+    target_recording.close()
 
     for f in range(1,train_round):
         args.kfold = f
@@ -203,9 +208,6 @@ def main_worker(gpu, ngpus_per_node, args):
                                            transform=transform_val, train=False, cv_test=True, download=True)
         valset = encoding.datasets.get_dataset(args.dataset, root=root,
                                            transform=transform_val, train=False, cv_test=False, hold_test=False, download=True)
-        holdout_testset = encoding.datasets.get_dataset(args.dataset,
-                                                        root=root,
-                                           transform=transform_val, train=False, cv_test=False, hold_test=True, download=True)
 
         # Training Set Fold [1,2,3,4,5] depends on the fold
         train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
@@ -228,26 +230,20 @@ def main_worker(gpu, ngpus_per_node, args):
             num_workers=args.workers, pin_memory=True,
             sampler=val_sampler)
 
-        # Validation for holdout
-        holdout_test_sampler = torch.utils.data.distributed.DistributedSampler(holdout_testset, shuffle=False)
-        holdout_test_loader = torch.utils.data.DataLoader(
-            holdout_testset, batch_size=args.test_batch_size, shuffle=False,
-            num_workers=args.workers, pin_memory=True,
-            sampler=holdout_test_sampler)
-
         validation_loader = {"test_loader":test_loader,
-                             "val_loader":val_loader,
-                             "holdout_test_loader":holdout_test_loader}
+                             "val_loader":val_loader,}
 
-    else:
+    # Holdout testing data loader
+    if args.HoldOut:
         if args.Download_folder == "Colour_Large_MFCC":
             root = os.path.expanduser('./encoding/data/Colour_Large_MFCC/')
         else:
             root = os.path.expanduser('./encoding/data/Colour_Large_STFT/')
+            
         trainset = encoding.datasets.get_dataset(args.dataset, root=root,
-                                             transform=transform_train, train=True, download=True)
+                                             transform=transform_train, train=True, holdout=True, download=True)
         valset = encoding.datasets.get_dataset(args.dataset, root=root,
-                                           transform=transform_val, train=False, cv_val=False, hold_test=False, download=True)
+                                           transform=transform_val, train=False, holdout=True, download=True)
 
         train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
         train_loader = torch.utils.data.DataLoader(
@@ -259,11 +255,11 @@ def main_worker(gpu, ngpus_per_node, args):
         test_loader = torch.utils.data.DataLoader(
             test_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
-            sampler=test_sampler)
-
-        validation_loader = {"test_loader":test_loader}
+            sampler=test_sampler) 
+        
+        validation_loader = {"holdout_test_loader":test_loader}
+    
     # init the model
-
     model_kwargs = {}
     if args.pretrained:
         model_kwargs['pretrained'] = True
@@ -294,7 +290,7 @@ def main_worker(gpu, ngpus_per_node, args):
         model.apply(apply_drop_prob)
 
     if args.mixup > 0:
-        train_loader = MixUpWrapper(args.mixup, 1000, train_loader, args.gpu)
+        train_loader = MixUpWrapper(args.mixup, 2, train_loader, args.gpu)
         criterion = NLLMultiLabelSmooth(args.label_smoothing)
     elif args.label_smoothing > 0.0:
         criterion = LabelSmoothing(args.label_smoothing)
@@ -316,6 +312,7 @@ def main_worker(gpu, ngpus_per_node, args):
         if args.gpu == 0:
             print(" Weight decay NOT applied to BN parameters ")
             print(f'len(parameters): {len(list(model.parameters()))} = {len(bn_params)} + {len(rest_params)}')
+        
         optimizer = torch.optim.SGD([{'params': bn_params, 'weight_decay': 0 },
                                      {'params': rest_params, 'weight_decay': args.weight_decay}],
                                     lr=args.lr,
@@ -518,21 +515,7 @@ def main_worker(gpu, ngpus_per_node, args):
         accuracy = classification_metrics['accuracy']
 
         print(val_type + ' Validation: Accuracy: %.3f'%(accuracy))
-
-        # ROC score
-        if epoch == args.epochs-1:
             
-            roc_score = roc_auc_score(target_list, score_list)
-
-            # plot the roc curve
-            fpr, tpr, _ = roc_curve(target_list, score_list)
-            plt.plot(fpr, tpr, label = "Area under ROC = {:.4f}".format(roc_score))
-            plt.plot([(0,0),(1,1)],"r-")
-            plt.legend(loc = 'best')
-            plt.xlabel('False Positive Rate')
-            plt.ylabel('True Positive Rate')
-            plt.savefig("ROC/ROC+" + args.model + "_" + args.Download_folder + "Round_" + str(args.kfold) + ".png")
-
     if args.export:
         if args.gpu == 0:
             torch.save(model.module.state_dict(), args.export + '.pth')
@@ -549,11 +532,19 @@ def main_worker(gpu, ngpus_per_node, args):
     for epoch in range(args.start_epoch, args.epochs):
         time_recording = open(time_file, 'a')
         tic = time.time()
-        train(epoch)
-        acclist_train_set.append(acclist_train)
-        test(epoch, "test_loader")
-        acclist_val_set.append(acclist_val)
-        validation(epoch, "val_lo\ader")
+        
+        if args.FiveFold:
+            train(epoch)
+            acclist_train_set.append(acclist_train)
+            test(epoch, "test_loader")
+            acclist_val_set.append(acclist_val)
+            validation(epoch, "val_loader")
+        else:
+            train(epoch)
+            acclist_train_set.append(acclist_train)
+            test(epoch, "holdout_test_loader")
+            acclist_val_set.append(acclist_val)
+            
         elapsed = time.time() - tic
         if args.gpu == 0:
             print(f'Epoch: {epoch}, Time cost: {elapsed}')
