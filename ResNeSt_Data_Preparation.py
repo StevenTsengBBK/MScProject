@@ -57,6 +57,10 @@ def DataPrepare(CLASS1_LABELID, CLASS2_LABELID):
         
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTrain")
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTest")
+        os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTrain/" + class_label[CLASS1_LABELID])
+        os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTest/" + class_label[CLASS1_LABELID])
+        os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTrain/" + class_label[CLASS2_LABELID])
+        os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTest/" + class_label[CLASS2_LABELID])
         HOLDOUT_TRAIN_DIR = dataset_type_dir +"/urbansound8k/holdoutTrain"
         HOLDOUT_TEST_DIR = dataset_type_dir +"/urbansound8k/holdoutTest"
         

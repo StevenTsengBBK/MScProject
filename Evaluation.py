@@ -19,8 +19,8 @@ output_file = open(Output_result, 'r')
 target_file = open(Target_result, 'r')
 
 round_label = ["round1", "round2", "round3", "round4", "round5"]
-Model_label = ["ResNeSt50", "ResNeSt101"]
-#"ResNeSt200", "ResNeSt269"
+Model_label = ["ResNeSt200", "ResNeSt269"]
+
 Dataset_label = ["Colour_Large_MFCC", "Colour_Large_STFT"]
 Dataset_type = ["MFCC", "STFT"]
 Mode_label = ["Train", "test_loader", "val_loader"]
@@ -143,7 +143,6 @@ for line in target_file:
 
 # Forming accuracy list for analysis
 accuracy_dict = {}
-
 highest_acc_dict = {}
 
 highest_acc_val = 0
@@ -159,7 +158,7 @@ for model in range(len(Model_label)):
                 predict_list = prediction_dict["Predict_Train" + "_" + Model_label[model].lower() + "_" + Dataset_label[dataset] + "_" + round_label[r]][epoch]
                 target_list = np.array(target_list, dtype='int')
                 predict_list = np.array(predict_list, dtype='int')
-                classification_metrics = classification_report(target_list, predict_list,target_names = ['engine_idling', 'drilling'],output_dict= True)
+                classification_metrics = classification_report(target_list, predict_list,target_names = ['drilling','engine_idling'],output_dict= True)
                 accuracy = classification_metrics['accuracy']
                 accuracy_list[0,r,epoch] = accuracy
                     
@@ -168,7 +167,7 @@ for model in range(len(Model_label)):
                 predict_list = prediction_dict["Predict_test_loader" + "_" + Model_label[model].lower() + "_" + Dataset_label[dataset] + "_" + round_label[r]][epoch]
                 target_list = np.array(target_list, dtype='int')
                 predict_list = np.array(predict_list, dtype='int')
-                classification_metrics = classification_report(target_list, predict_list,target_names = ['engine_idling', 'drilling'],output_dict= True)
+                classification_metrics = classification_report(target_list, predict_list,target_names = ['drilling','engine_idling'],output_dict= True)
                 accuracy = classification_metrics['accuracy']
                 accuracy_list[1,r,epoch] = accuracy
                     
@@ -177,7 +176,7 @@ for model in range(len(Model_label)):
                 predict_list = prediction_dict["Predict_val_loader" + "_" + Model_label[model].lower() + "_" + Dataset_label[dataset] + "_" + round_label[r]][epoch]
                 target_list = np.array(target_list, dtype='int')
                 predict_list = np.array(predict_list, dtype='int')
-                classification_metrics = classification_report(target_list, predict_list,target_names = ['engine_idling', 'drilling'],output_dict= True)
+                classification_metrics = classification_report(target_list, predict_list,target_names = ['drilling','engine_idling'],output_dict= True)
                 accuracy = classification_metrics['accuracy']
                 accuracy_list[2,r,epoch] = accuracy
                 if highest_acc_val < accuracy:
@@ -190,6 +189,7 @@ for model in range(len(Model_label)):
             highest_acc_val = 0
             best_epoch_val = 0
         accuracy_dict[Model_label[model].lower() + "_" + Dataset_label[dataset]] = accuracy_list
+        
 # AUROC, PRROC, F1, sensitivity, specificity
 for model in range(len(Model_label)):
     for dataset in range(len(Dataset_label)):
@@ -210,11 +210,11 @@ for model in range(len(Model_label)):
             predict_list = np.array(predict_list, dtype='int')
             score_list = np.array(score_list, dtype='float')
             
-            classification_metrics = classification_report(target_list, predict_list, target_names = ['engine_idling', 'drilling'],output_dict= True)
+            classification_metrics = classification_report(target_list, predict_list, target_names = ['drilling','engine_idling'],output_dict= True)
             
             accuracy = classification_metrics['accuracy']
-            sensitivity = classification_metrics['drilling']['recall']
-            specificity = classification_metrics['engine_idling']['recall']
+            sensitivity = classification_metrics['engine_idling']['recall']
+            specificity = classification_metrics['drilling']['recall']
             f1 = f1_score(target_list, predict_list)
             roc_score = roc_auc_score(target_list, score_list)
             conf_matrix = confusion_matrix(target_list, predict_list)
@@ -271,6 +271,7 @@ for model in range(len(Model_label)):
             pr_score = auc(recall, precision)
             plt.figure(figsize=(9,9))
             plt.plot(recall,precision, label = "Area under ROC = {:.4f}".format(pr_score))
+            plt.plot([(0,0),(1,1)],"k--")
             plt.title("Precision-Recall Curve of " + Model_label[model] + " inputting " + Dataset_type[dataset] + " Specturm Round " + round_label[r], fontsize=13)
             plt.xlabel('Recall', fontsize=12)
             plt.ylabel('Precision', fontsize=12)

@@ -130,9 +130,16 @@ cv_acclist_val = []
 acclist_train_set = []
 acclist_val_set = []
 
+args = Options().parse()
+# Recording file
 output_file = "./Output_result.txt"
 target_file = "./Target_result.txt"
 time_file = "./Time_result.txt"
+if args.HoldOut:
+    output_file = "./Output_result_holdout.txt"
+    target_file = "./Target_result_holdout.txt"
+    time_file = "./Time_result_holdout.txt"
+
 
 def main():
     dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -144,12 +151,6 @@ def main():
     print("Data preparing")
     DataPrepare(args.CLASS1_LABELID, args.CLASS2_LABELID)
 
-    # Recording file Check
-    if args.HoldOut:
-        output_file = "./Output_result_holdout.txt"
-        target_file = "./Target_result_holdout.txt"
-        time_file = "./Time_result_holdout.txt"
-    
     ngpus_per_node = torch.cuda.device_count()
     args.world_size = ngpus_per_node * args.world_size
     args.lr = args.lr * args.world_size
@@ -160,7 +161,7 @@ def main():
     if args.FiveFold:
         train_round = 6
     else:
-        train_round = 1
+        train_round = 2
         
     output_recording = open(output_file, 'a')
     target_recording = open(target_file, 'a')
@@ -242,7 +243,7 @@ def main_worker(gpu, ngpus_per_node, args):
             
         trainset = encoding.datasets.get_dataset(args.dataset, root=root,
                                              transform=transform_train, train=True, holdout=True, download=True)
-        valset = encoding.datasets.get_dataset(args.dataset, root=root,
+        test_valset = encoding.datasets.get_dataset(args.dataset, root=root,
                                            transform=transform_val, train=False, holdout=True, download=True)
 
         train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
@@ -251,7 +252,7 @@ def main_worker(gpu, ngpus_per_node, args):
             num_workers=args.workers, pin_memory=True,
             sampler=train_sampler)
 
-        test_sampler = torch.utils.data.distributed.DistributedSampler(valset, shuffle=False)
+        test_sampler = torch.utils.data.distributed.DistributedSampler(test_valset, shuffle=False)
         test_loader = torch.utils.data.DataLoader(
             test_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
