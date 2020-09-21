@@ -381,7 +381,7 @@ def main_worker(gpu, ngpus_per_node, args):
             target_list.extend(target.squeeze().tolist())
 
         classification_metrics = classification_report(target_list, pred_list,
-                                                      target_names = ['engine_idling', 'drilling'],
+                                                      target_names = ['drilling','engine_idling'],
                                                       output_dict= True)
 
         accuracy = classification_metrics['accuracy']    
@@ -432,7 +432,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 target_list.extend(target.squeeze().tolist())
 
         classification_metrics = classification_report(target_list, pred_list,
-                                                      target_names = ['engine_idling', 'drilling'],
+                                                      target_names = ['drilling','engine_idling'],
                                                       output_dict= True)
 
         accuracy = classification_metrics['accuracy']
@@ -510,7 +510,7 @@ def main_worker(gpu, ngpus_per_node, args):
         
         # Accuracy and ROC Plot
         classification_metrics = classification_report(target_list, pred_list,
-                                                      target_names = ['engine_idling', 'drilling'],
+                                                      target_names = ['drilling','engine_idling'],
                                                       output_dict= True)
 
         accuracy = classification_metrics['accuracy']

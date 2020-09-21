@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, roc_auc_score, roc_curve, confusion_matrix, precision_recall_curve, f1_score, auc
 import matplotlib.pyplot as plt
 from statistics import mean
+import pandas as pd
 
 # Check directory
 if not os.path.exists(os.path.expanduser("./PR")):
@@ -12,7 +13,9 @@ if not os.path.exists(os.path.expanduser("./Accuracy")):
     os.makedirs(os.path.expanduser("./Accuracy"))
 if not os.path.exists(os.path.expanduser("./ROC")):
     os.makedirs(os.path.expanduser("./ROC"))
-    
+if not os.path.exists(os.path.expanduser("./CONF")):
+    os.makedirs(os.path.expanduser("./CONF"))
+
 Output_result = "Output_result_holdout.txt"
 Target_result = "Target_result_holdout.txt"
 output_file = open(Output_result, 'r')
@@ -59,7 +62,7 @@ for line in output_file:
             key = "Predict_Train" + "_" + model + "_" + dataset
         elif "holdout_test_loader" in line:
             key = "Predict_test_loader" + "_" + model + "_" + dataset
-            
+
         if key not in combination_list:
             combination_list.append(key)
             prediction_dict[key] = []
@@ -77,7 +80,7 @@ for line in output_file:
             prediction_dict[key].append(temp_predict)
             temp_predict = [[],[],[],[]]
             count_predict = 0
-            
+
     if "Score" in line:
         l = line.split(" | ")
         model = l[5].replace("Model: ", "")
@@ -86,7 +89,7 @@ for line in output_file:
             key = "Score_Train" + "_" + model + "_" + dataset
         elif "holdout_test_loader" in line:
             key = "Score_test_loader" + "_" + model + "_" + dataset
-            
+
         if key not in combination_list:
             combination_list.append(key)
             score_dict[key] = []
@@ -116,7 +119,7 @@ for line in target_file:
             key = "Target_Train" + "_" + model + "_" + dataset
         elif "holdout_test_loader" in line:
             key = "Target_test_loader" + "_" + model + "_" + dataset
-            
+
         if key not in combination_list:
             combination_list.append(key)
             target_dict[key] = []
@@ -134,14 +137,14 @@ for line in target_file:
             target_dict[key].append(temp_target)
             temp_target = [[],[],[],[]]
             count_target = 0
-            
+
 # Forming accuracy list for analysis
 accuracy_dict = {}
 highest_acc_dict = {}
 
 highest_acc_val = 0
 best_epoch_val = 0
-    
+
 for model in range(len(Model_label)):
     accuracy_list = np.zeros((2,train_epoch))
     for epoch in range(train_epoch):
@@ -172,20 +175,24 @@ for model in range(len(Model_label)):
     highest_acc_val = 0
     best_epoch_val = 0
     accuracy_dict[Model_label[model].lower() + "_" + Dataset_label] = accuracy_list
-    
+
 # Accuracy Curve
 for model in range(len(Model_label)):
-    plt.figure(figsize=(15,5))
+    plt.figure(figsize=(15,3))
     acc_list = accuracy_dict[Model_label[model].lower() + "_" + Dataset_label]
     plt.plot(epoch_label, acc_list[0], label = "Train")
     plt.plot(epoch_label, acc_list[1], label = "Holdout")
-    plt.xlabel('Epoch', fontsize=15)
-    plt.ylabel('Accuracy', fontsize=15)
-    plt.title("Holdout Testing accuracy of " + Model_label[model] + " inputting " + Dataset_type + " Specturm ", fontsize=18)
-    plt.legend(loc='best')
+    plt.xlabel('Epoch', fontsize=14)
+    plt.ylabel('Accuracy', fontsize=14)
+    plt.title(Model_label[model], fontsize=16)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(loc='best', fontsize=12)
+    plt.grid(True)
+    plt.tight_layout()
     plt.savefig("./Accuracy/Holdout_"+Model_label[model]+"_"+Dataset_type)
     plt.clf()
-    
+
 # AUROC, PRROC, F1, sensitivity, specificity
 for model in range(len(Model_label)):
     print("Model:", Model_label[model], "Dataset:", Dataset_type)
@@ -202,8 +209,8 @@ for model in range(len(Model_label)):
     classification_metrics = classification_report(target_list, predict_list, target_names = ['drilling','engine_idling'],output_dict= True)
 
     accuracy = classification_metrics['accuracy']
-    sensitivity = classification_metrics['engine_idling']['recall']
-    specificity = classification_metrics['drilling']['recall']
+    sensitivity = classification_metrics['drilling']['recall']
+    specificity = classification_metrics['engine_idling']['recall']
     f1 = f1_score(target_list, predict_list)
     roc_score = roc_auc_score(target_list, score_list)
     conf_matrix = confusion_matrix(target_list, predict_list)
@@ -217,7 +224,7 @@ for model in range(len(Model_label)):
     print("AUROC:", roc_score)
     print("AUPRC:", pr_score)
     print("F1:", f1)
-    
+
 # PR Curve and ROC Curve
 for model in range(len(Model_label)):
     best_epoch = highest_acc_dict[Model_label[model].lower() + "_" + Dataset_label]
@@ -231,25 +238,33 @@ for model in range(len(Model_label)):
     # plot the pr curve
     precision, recall, thresholds = precision_recall_curve(target, score)
     pr_score = auc(recall, precision)
-    plt.figure(figsize=(9,9))
-    plt.plot(recall,precision, label = "Area under ROC = {:.4f}".format(pr_score))
+    plt.figure(figsize=(4,4))
+    plt.plot(recall,precision, label = "AUPRC = {:.4f}".format(pr_score))
     plt.plot([(0,0),(1,1)],"k--")
-    plt.title("Precision-Recall Curve of Holdout testing on " + Model_label[model] + " inputting " + Dataset_type + " Specturm", fontsize=13)
+    plt.title(Model_label[model], fontsize=14)
     plt.legend(loc = 'best')
     plt.xlabel('Recall', fontsize=12)
     plt.ylabel('Precision', fontsize=12)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.grid(True)
+    plt.tight_layout()
     plt.savefig("./PR/Holdout_"+Model_label[model]+"_"+Dataset_type+".png")
     plt.clf()
 
     # plot the roc curve
     roc_score = roc_auc_score(target, score)
     fpr, tpr, _ = roc_curve(target, score)
-    plt.figure(figsize=(9,9))
-    plt.plot(fpr, tpr, label = "Area under ROC = {:.4f}".format(roc_score))
-    plt.title("ROC Curve of Holdout testing on " + Model_label[model] + " inputting " + Dataset_type + " Specturm", fontsize=13)
+    plt.figure(figsize=(4,4))
+    plt.plot(fpr, tpr, label = "AUROC = {:.4f}".format(roc_score))
+    plt.title(Model_label[model], fontsize=14)
     plt.plot([(0,0),(1,1)],"r-")
     plt.legend(loc = 'best')
     plt.xlabel('False Positive Rate', fontsize=12)
     plt.ylabel('True Positive Rate', fontsize=12)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.grid(True)
+    plt.tight_layout()
     plt.savefig("./ROC/Holdout_ROC+" + Model_label[model] + "_" + Dataset_type + ".png")
     plt.clf()
