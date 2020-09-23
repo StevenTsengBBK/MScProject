@@ -1,1 +1,0 @@
-python3 ResNeSt_Model_Train.py --model_name resnest50 --FiveFold --train_epoch 30 --crop_size 271 --learning_rate 0.001 --rectify --last_gamma --mixup 0.2 --label_smoothing 0.1 --warmup_epochs 5

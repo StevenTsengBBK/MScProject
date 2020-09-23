@@ -1,1 +1,0 @@
-- [Link to Docs](https://hangzhang.org/PyTorch-Encoding/model_zoo/imagenet.html)
