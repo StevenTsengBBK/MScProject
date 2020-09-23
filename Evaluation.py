@@ -59,6 +59,7 @@ for line in output_file:
             key = "Predict_test_loader" + "_" + model + "_" + dataset + "_round" + cvRound
         elif "val_loader" in line:
             key = "Predict_val_loader" + "_" + model + "_" + dataset + "_round" + cvRound
+            
         if key not in combination_list:
             combination_list.append(key)
             prediction_dict[key] = []
@@ -122,6 +123,7 @@ for line in target_file:
             key = "Target_test_loader" + "_" + model + "_" + dataset + "_round" + cvRound
         elif "val_loader" in line:
             key = "Target_val_loader" + "_" + model + "_" + dataset + "_round" + cvRound
+            
         if key not in combination_list:
             combination_list.append(key)
             target_dict[key] = []

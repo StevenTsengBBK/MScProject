@@ -245,20 +245,32 @@ def main_worker(gpu, ngpus_per_node, args):
                                              transform=transform_train, train=True, holdout=True, download=True)
         test_valset = encoding.datasets.get_dataset(args.dataset, root=root,
                                            transform=transform_val, train=False, holdout=True, download=True)
-
+        valset = encoding.datasets.get_dataset(args.dataset, root=root,
+                                           transform=transform_val, train=False, cv_test=False, hold_test=False, download=True)
+        
+        # Training set Fold [1,2,3,4,5]
         train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
         train_loader = torch.utils.data.DataLoader(
             trainset, batch_size=args.batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=train_sampler)
-
+        
+        # Holdout testing set Fold [8, 9, 10]
         test_sampler = torch.utils.data.distributed.DistributedSampler(test_valset, shuffle=False)
         test_loader = torch.utils.data.DataLoader(
             test_valset, batch_size=args.test_batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True,
             sampler=test_sampler) 
         
-        validation_loader = {"holdout_test_loader":test_loader}
+        # Validation set Fold [6, 7]
+        val_sampler = torch.utils.data.distributed.DistributedSampler(valset, shuffle=False)
+        val_loader = torch.utils.data.DataLoader(
+            valset, batch_size=args.test_batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True,
+            sampler=val_sampler)
+        
+        validation_loader = {"holdout_test_loader":test_loader,
+                            "val_loader":val_loader}
     
     # init the model
     model_kwargs = {}
@@ -545,6 +557,7 @@ def main_worker(gpu, ngpus_per_node, args):
             acclist_train_set.append(acclist_train)
             test(epoch, "holdout_test_loader")
             acclist_val_set.append(acclist_val)
+            validation(epoch, "val_loader")
             
         elapsed = time.time() - tic
         if args.gpu == 0:

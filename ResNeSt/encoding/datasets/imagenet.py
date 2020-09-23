@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 class ImageNetDataset(datasets.ImageFolder):
     BASE_DIR = "urbansound8k"
     def __init__(self, root=os.path.expanduser('./encoding/data'), transform=None,
-                 target_transform=None, train=True, cv_test = False, holdout=False,  **kwargs):
+                 target_transform=None, train=True, cv_test = False, holdout=False, **kwargs):
         if train and not holdout:
             split = 'train'
         elif train and holdout:

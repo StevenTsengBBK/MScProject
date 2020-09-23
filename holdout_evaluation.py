@@ -62,6 +62,8 @@ for line in output_file:
             key = "Predict_Train" + "_" + model + "_" + dataset
         elif "holdout_test_loader" in line:
             key = "Predict_test_loader" + "_" + model + "_" + dataset
+        elif "val_loader" in line:
+            key = "Predict_val_loader" + "_" + model + "_" + dataset
 
         if key not in combination_list:
             combination_list.append(key)
@@ -119,6 +121,8 @@ for line in target_file:
             key = "Target_Train" + "_" + model + "_" + dataset
         elif "holdout_test_loader" in line:
             key = "Target_test_loader" + "_" + model + "_" + dataset
+        elif "val_loader" in line:
+            key = "Target_val_loader" + "_" + model + "_" + dataset
 
         if key not in combination_list:
             combination_list.append(key)
@@ -146,7 +150,7 @@ highest_acc_val = 0
 best_epoch_val = 0
 
 for model in range(len(Model_label)):
-    accuracy_list = np.zeros((2,train_epoch))
+    accuracy_list = np.zeros((3,train_epoch))
     for epoch in range(train_epoch):
         # Train
         target_list = target_dict["Target_Train" + "_" + Model_label[model].lower() + "_" + Dataset_label][epoch]
@@ -165,10 +169,18 @@ for model in range(len(Model_label)):
         classification_metrics = classification_report(target_list, predict_list,target_names = ['drilling','engine_idling'],output_dict= True)
         accuracy = classification_metrics['accuracy']
         accuracy_list[1,epoch] = accuracy
-        if highest_acc_val < accuracy:
-                highest_acc_val = accuracy
-                best_epoch_val = epoch
 
+        # Validation
+        target_list = target_dict["Target_val_loader" + "_" + Model_label[model].lower() + "_" + Dataset_label][epoch]
+        predict_list = prediction_dict["Predict_val_loader" + "_" + Model_label[model].lower() + "_" + Dataset_label][epoch]
+        target_list = np.array(target_list, dtype='int')
+        predict_list = np.array(predict_list, dtype='int')
+        classification_metrics = classification_report(target_list, predict_list,target_names = ['drilling','engine_idling'],output_dict= True)
+        accuracy = classification_metrics['accuracy']
+        accuracy_list[2,epoch] = accuracy
+        if highest_acc_val < accuracy:
+            highest_acc_val = accuracy
+            best_epoch_val = epoch
 
     highest_acc_dict[Model_label[model].lower() + "_" + Dataset_label] = epoch
 
@@ -182,6 +194,7 @@ for model in range(len(Model_label)):
     acc_list = accuracy_dict[Model_label[model].lower() + "_" + Dataset_label]
     plt.plot(epoch_label, acc_list[0], label = "Train")
     plt.plot(epoch_label, acc_list[1], label = "Holdout")
+    plt.plot(epoch_label, acc_list[2], label = "Validation ")
     plt.xlabel('Epoch', fontsize=14)
     plt.ylabel('Accuracy', fontsize=14)
     plt.title(Model_label[model], fontsize=16)
@@ -226,6 +239,8 @@ for model in range(len(Model_label)):
     print("F1:", f1)
 
 # PR Curve and ROC Curve
+# plot the pr curve
+plt.figure(figsize=(4,4))
 for model in range(len(Model_label)):
     best_epoch = highest_acc_dict[Model_label[model].lower() + "_" + Dataset_label]
 
@@ -235,36 +250,45 @@ for model in range(len(Model_label)):
     score = np.array(score, dtype='float')
     target = np.array(target, dtype='int')
 
-    # plot the pr curve
     precision, recall, thresholds = precision_recall_curve(target, score)
     pr_score = auc(recall, precision)
-    plt.figure(figsize=(4,4))
-    plt.plot(recall,precision, label = "AUPRC = {:.4f}".format(pr_score))
-    plt.plot([(0,0),(1,1)],"k--")
-    plt.title(Model_label[model], fontsize=14)
-    plt.legend(loc = 'best')
-    plt.xlabel('Recall', fontsize=12)
-    plt.ylabel('Precision', fontsize=12)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("./PR/Holdout_"+Model_label[model]+"_"+Dataset_type+".png")
-    plt.clf()
+    
+    plt.plot(recall,precision, label = Model_label[model] + " AUPRC = {:.4f}".format(pr_score))
+plt.plot([(0,0),(1,1)],"k--")
+plt.title("PR-Curve", fontsize=14)
+plt.legend(loc = 'best')
+plt.xlabel('Recall', fontsize=12)
+plt.ylabel('Precision', fontsize=12)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("./PR/Holdout.png")
+plt.clf()
 
-    # plot the roc curve
+ # plot the roc curve
+plt.figure(figsize=(4,4))
+for model in range(len(Model_label)):
+    best_epoch = highest_acc_dict[Model_label[model].lower() + "_" + Dataset_label]
+
+    score = score_dict["Score_test_loader" + "_" + Model_label[model].lower() + "_" + Dataset_label][best_epoch]
+    target = target_dict["Target_test_loader" + "_" + Model_label[model].lower() + "_" + Dataset_label][best_epoch]
+
+    score = np.array(score, dtype='float')
+    target = np.array(target, dtype='int')
+    
     roc_score = roc_auc_score(target, score)
     fpr, tpr, _ = roc_curve(target, score)
-    plt.figure(figsize=(4,4))
-    plt.plot(fpr, tpr, label = "AUROC = {:.4f}".format(roc_score))
-    plt.title(Model_label[model], fontsize=14)
-    plt.plot([(0,0),(1,1)],"r-")
-    plt.legend(loc = 'best')
-    plt.xlabel('False Positive Rate', fontsize=12)
-    plt.ylabel('True Positive Rate', fontsize=12)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("./ROC/Holdout_ROC+" + Model_label[model] + "_" + Dataset_type + ".png")
-    plt.clf()
+
+    plt.plot(fpr, tpr, label = Model_label[model] + " AUROC = {:.4f}".format(roc_score))
+plt.title("ROC-Curve", fontsize=14)
+plt.plot([(0,0),(1,1)],"r-")
+plt.legend(loc = 'best')
+plt.xlabel('False Positive Rate', fontsize=12)
+plt.ylabel('True Positive Rate', fontsize=12)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("./ROC/Holdout_ROC.png")
+plt.clf()

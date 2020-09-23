@@ -57,12 +57,16 @@ def DataPrepare(CLASS1_LABELID, CLASS2_LABELID):
         
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTrain")
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTest")
+        os.makedirs(dataset_type_dir +"/urbansound8k/val")
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTrain/" + class_label[CLASS1_LABELID])
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTest/" + class_label[CLASS1_LABELID])
+        os.makedirs(dataset_type_dir +"/urbansound8k/val/" + class_label[CLASS1_LABELID])
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTrain/" + class_label[CLASS2_LABELID])
         os.makedirs(dataset_type_dir +"/urbansound8k/holdoutTest/" + class_label[CLASS2_LABELID])
+        os.makedirs(dataset_type_dir +"/urbansound8k/val/" + class_label[CLASS2_LABELID])
         HOLDOUT_TRAIN_DIR = dataset_type_dir +"/urbansound8k/holdoutTrain"
         HOLDOUT_TEST_DIR = dataset_type_dir +"/urbansound8k/holdoutTest"
+        HOLDOUT_VAL_DIR = dataset_type_dir +"/urbansound8k/val"
         
         for iteration in range(1,6):
             ITER_DIR = dataset_type_dir + "/round" + str(iteration) + "/urbansound8k"
@@ -116,6 +120,14 @@ def DataPrepare(CLASS1_LABELID, CLASS2_LABELID):
                                 label = class_label[class_id]
                                 copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
                                          HOLDOUT_TRAIN_DIR + "/" + label + "/" + file)
+                if fold <8 and fold >5 and iteration == 5:
+                    for file in fileList:
+                        if not file.startswith('.'):
+                            class_id = int(file.split("-")[1])
+                            if class_id == CLASS1_LABELID or class_id == CLASS2_LABELID:
+                                label = class_label[class_id]
+                                copyfile(DOWNLOAD_DIR + '/fold' + str(fold) + "/" + file,
+                                         HOLDOUT_VAL_DIR + "/" + label + "/" + file)
                 if fold > 7 and iteration == 5:
                     for file in fileList:
                         if not file.startswith('.'):
